@@ -555,6 +555,51 @@ export function DashboardPage() {
                 <Button className="w-full mt-4 h-12 rounded-xl border-gray-100 hover:bg-primary/5 hover:text-primary transition-all font-bold" variant="outline" asChild>
                   <Link to="/profile">MANAGE PROFILE</Link>
                 </Button>
+
+                {user?.role !== "DONOR" && user?.role !== "ADMIN" && (
+                   <Button 
+                    variant="default"
+                    className="w-full mt-3 h-12 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all font-black"
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to become a donor? You will be visible to hospitals and patients in need.")) {
+                        try {
+                          const response = await api.post("/donors/register-me");
+                          toast.success("Welcome, Donor!", {
+                            description: response.data.message || "Your role has been upgraded successfully.",
+                          });
+                          window.location.reload();
+                        } catch (error: any) {
+                          const errorMsg = error.response?.data?.message || error.response?.data || "Failed to upgrade role.";
+                          toast.error(errorMsg);
+                        }
+                      }
+                    }}
+                  >
+                    BECOME A DONOR
+                  </Button>
+                )}
+
+                {user?.role === "DONOR" && (
+                  <Button 
+                    variant="outline"
+                    className="w-full mt-3 h-12 rounded-xl border-red-100 text-red-600 hover:bg-red-50 transition-all font-black"
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to stop being a donor? You will no longer appear in searches.")) {
+                        try {
+                          await api.delete("/donors/unregister-me");
+                          toast.success("Role Reverted", {
+                            description: "You are now a Patient again.",
+                          });
+                          window.location.reload();
+                        } catch (error) {
+                          toast.error("Failed to revert role.");
+                        }
+                      }
+                    }}
+                  >
+                    STOP DONATING
+                  </Button>
+                )}
                 {isAdmin && (
                   <Button className="w-full mt-3 h-12 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105 transition-all font-bold" asChild>
                     <Link to="/admin">MANAGE SYSTEM (ADMIN)</Link>

@@ -74,4 +74,46 @@ public class DonorController {
 
         return ResponseEntity.ok(donorRepository.save(donor));
     }
+
+    @PostMapping("/register-me")
+    @jakarta.transaction.Transactional
+    public ResponseEntity<?> registerAsDonor(Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).build();
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        User user = userRepository.findById(userDetails.getId()).get();
+
+        // 1. Upgrade Role if needed
+        if (user.getRole() != com.example.blooddonation.enums.Role.DONOR) {
+            user.setRole(com.example.blooddonation.enums.Role.DONOR);
+            userRepository.save(user);
+        }
+
+        // 2. Create Donor entity ONLY if it doesn't exist
+        if (donorRepository.findByUser(user).isEmpty()) {
+            Donor donor = Donor.builder()
+                    .user(user)
+                    .availabilityStatus("AVAILABLE")
+                    .build();
+            donorRepository.save(donor);
+        }
+
+        return ResponseEntity.ok(new com.example.blooddonation.dto.MessageResponse("Now you are a donor!"));
+    }
+
+    @DeleteMapping("/unregister-me")
+    @jakarta.transaction.Transactional
+    public ResponseEntity<?> unregisterAsDonor(Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).build();
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        User user = userRepository.findById(userDetails.getId()).get();
+
+        // 1. Revert Role
+        user.setRole(com.example.blooddonation.enums.Role.PATIENT);
+        userRepository.save(user);
+
+        // 2. Remove Donor entity
+        donorRepository.findByUser(user).ifPresent(d -> donorRepository.delete(d));
+
+        return ResponseEntity.ok(new com.example.blooddonation.dto.MessageResponse("Role reverted to patient."));
+    }
 }

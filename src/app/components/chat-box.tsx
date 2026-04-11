@@ -15,10 +15,15 @@ export function ChatBox() {
   const [isMinimized, setIsMinimized] = useState(false);
 
   // Combine fetched history with live messages
-  const allMessages = [...history, ...messages.filter(m => 
-    (m.senderId === activeChatUser?.id && m.receiverId === user?.id) ||
-    (m.senderId === user?.id && m.receiverId === activeChatUser?.id)
-  )];
+  const allMessages = [...history, ...messages.filter(m => {
+    const mSenderId = Number(m.senderId);
+    const mReceiverId = Number(m.receiverId);
+    const currUserId = Number(user?.id);
+    const activeId = Number(activeChatUser?.id);
+
+    return (mSenderId === activeId && mReceiverId === currUserId) ||
+           (mSenderId === currUserId && mReceiverId === activeId);
+  })];
 
   useEffect(() => {
     if (activeChatUser && user) {
@@ -83,7 +88,7 @@ export function ChatBox() {
                 </div>
               )}
               {allMessages.map((msg, idx) => {
-                const isMe = msg.senderId === user?.id;
+                const isMe = Number(msg.senderId) === Number(user?.id);
                 return (
                   <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-sm ${

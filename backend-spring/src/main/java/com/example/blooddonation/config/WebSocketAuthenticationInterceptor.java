@@ -28,8 +28,6 @@ public class WebSocketAuthenticationInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         StompCommand command = accessor.getCommand();
-        
-        System.out.println("WebSocket DEBUG [Frame]: " + command + " | Principal: " + (accessor.getUser() != null ? accessor.getUser().getName() : "null"));
 
         if (StompCommand.CONNECT.equals(command)) {
             List<String> authorization = accessor.getNativeHeader("Authorization");
@@ -40,20 +38,14 @@ public class WebSocketAuthenticationInterceptor implements ChannelInterceptor {
                 }
 
                 if (jwtUtils.validateJwtToken(token)) {
-                    String username = jwtUtils.getUserNameFromJwtToken(token);
-                    System.out.println("WebSocket DEBUG [Auth]: Attempting auth for: " + username);
+                    String username = jwtUtils.getUserNameFromJwtToken(token).toLowerCase();
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                     
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
                     
                     accessor.setUser(authentication);
-                    System.out.println("WebSocket DEBUG [Auth]: Local session setUser() completed: " + authentication.getName());
-                } else {
-                    System.err.println("WebSocket DEBUG [Auth]: Invalid JWT token");
                 }
-            } else {
-                System.out.println("WebSocket DEBUG [Auth]: No Authorization header found");
             }
         }
         return message;

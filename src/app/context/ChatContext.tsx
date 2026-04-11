@@ -61,47 +61,45 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Connected to WebSocket:', frame);
       setIsConnected(true);
       
-      // Subscribe to private queue - Spring handles the /user prefix resolution
-      const subscription = client.subscribe('/user/queue/messages', (message: IMessage) => {
+      client.subscribe('/user/queue/messages', (message: IMessage) => {
         try {
           const newMessage = JSON.parse(message.body);
-          console.log('STOMP DEBUG [Receive]: incoming message from server:', newMessage);
           
           setMessages((prev) => {
-            // Check if message already exists by ID
+            // Use Number() for robust comparison
             const isDuplicate = prev.some(m => 
               (newMessage.id && m.id === newMessage.id) || 
-              (m.content === newMessage.content && m.senderId === newMessage.senderId && Math.abs(new Date(m.timestamp || 0).getTime() - new Date(newMessage.timestamp || 0).getTime()) < 1000)
+              (Number(m.senderId) === Number(newMessage.senderId) && 
+               m.content === newMessage.content && 
+               Math.abs(new Date(m.timestamp || 0).getTime() - new Date(newMessage.timestamp || 0).getTime()) < 2000)
             );
             
             if (isDuplicate) return prev;
-            console.log('STOMP DEBUG [UI]: Adding message to state');
             return [...prev, newMessage];
           });
 
           // Show notification if it's an incoming message and not the currently active chat
-          const isMe = newMessage.senderId === user.id;
-          const isActive = activeChatUserRef.current?.id === newMessage.senderId;
+          const isFromMe = Number(newMessage.senderId) === Number(user.id);
+          const isCurrentlyChattingWithSender = activeChatUserRef.current && Number(activeChatUserRef.current.id) === Number(newMessage.senderId);
 
-          if (!isMe && !isActive) {
-            toast.message(`New from ${newMessage.senderName || 'Donor'}`, {
-              description: newMessage.content.substring(0, 50) + (newMessage.content.length > 50 ? '...' : ''),
+          if (!isFromMe && !isCurrentlyChattingWithSender) {
+            toast.message(`New message from ${newMessage.senderName || 'Donor'}`, {
+              description: newMessage.content.substring(0, 60) + (newMessage.content.length > 60 ? '...' : ''),
               action: {
-                label: 'Open',
-                onClick: () => openChat({ id: newMessage.senderId, name: newMessage.senderName || 'Donor' }),
+                label: 'View',
+                onClick: () => openChat({ id: Number(newMessage.senderId), name: newMessage.senderName || 'User' }),
               },
+              duration: 5000,
             });
           }
         } catch (e) {
-          console.error('STOMP DEBUG [Parse Error]: Failed to parse incoming message', e);
+          console.error('Failed to parse incoming message', e);
         }
       });
-      console.log('STOMP DEBUG [Sub]: Subscribed to /user/queue/messages | SubID:', subscription.id);
     };
 
     client.onStompError = (frame) => {
-      console.error('STOMP DEBUG [Error]: Broker reported error:', frame.headers['message']);
-      console.error('STOMP DEBUG [Error Details]:', frame.body);
+      console.error('Broker reported error:', frame.headers['message']);
       setIsConnected(false);
     };
 
