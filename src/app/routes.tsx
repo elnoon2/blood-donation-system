@@ -1,0 +1,88 @@
+import { createBrowserRouter } from "react-router";
+import { LandingPage } from "./pages/landing";
+import { LoginPage } from "./pages/login";
+import { RegisterPage } from "./pages/register";
+import { DashboardPage } from "./pages/dashboard";
+import { DonorProfilePage } from "./pages/donor-profile";
+import { RequestBloodPage } from "./pages/request-blood";
+import { SearchDonorsPage } from "./pages/search-donors";
+import { AdminDashboardPage } from "./pages/admin-dashboard";
+import { ContactUsPage } from "./pages/contact-us";
+import { DesignSystemPage } from "./pages/design-system";
+import { NotFoundPage } from "./pages/not-found";
+import { ProtectedRoute, PublicRoute } from "./components/auth-guards";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    Component: LandingPage,
+  },
+  {
+    path: "/login",
+    element: (
+      <PublicRoute>
+        <LoginPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: "/register",
+    element: (
+      <PublicRoute>
+        <RegisterPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: "/dashboard",
+    element: (
+      <ProtectedRoute>
+        <DashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/profile",
+    element: (
+      <ProtectedRoute>
+        <DonorProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/request-blood",
+    element: (
+      <ProtectedRoute roles={["PATIENT"]}>
+        <RequestBloodPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/search-donors",
+    element: (
+      <ProtectedRoute roles={["PATIENT"]}>
+        <SearchDonorsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin",
+    element: (
+      <ProtectedRoute roles={["ADMIN"]}>
+        <AdminDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/contact-us",
+    Component: ContactUsPage,
+  },
+  {
+    path: "/design-system",
+    Component: DesignSystemPage,
+  },
+  {
+    path: "*",
+    Component: NotFoundPage,
+  },
+]);

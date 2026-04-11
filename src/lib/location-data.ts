@@ -1,0 +1,63 @@
+export const GOVERNORATES = [
+  "Cairo",
+  "Giza",
+  "Alexandria",
+  "Dakahlia",
+  "Red Sea",
+  "Beheira",
+  "Fayoum",
+  "Gharbia",
+  "Ismailia",
+  "Menofia",
+  "Minya",
+  "Qalyubia",
+  "New Valley",
+  "Suez",
+  "Aswan",
+  "Assiut",
+  "Beni Suef",
+  "Port Said",
+  "Damietta",
+  "Sharqia",
+  "South Sinai",
+  "Kafr El Sheikh",
+  "Matrouh",
+  "Luxor",
+  "Qena",
+  "North Sinai",
+  "Sohag"
+];
+
+export const BLOOD_TYPES = [
+  "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"
+];
+
+export const HOSPITALS_BY_GOVERNORATE: Record<string, string[]> = {
+  "Cairo": ["Kasr Al-Ainy", "Ain Shams University Hospital", "Maadi Military Hospital", "Italian Hospital", "Dar Al Fouad (Nasr City)", "Cleopatra Hospital", "57357 Children's Hospital", "As-Salam International Hospital"],
+  "Giza": ["Giza Memorial Hospital", "Agouza Hospital", "October 6 University Hospital", "El Safwa Hospital", "Pyramids Hospital", "Dream Hospital"],
+  "Alexandria": ["Victoria Hospital", "Alexandria University Hospital", "Mostafa Kamel Military Hospital", "Smouha International Hospital", "German Hospital", "Mowasah Hospital"],
+  "Dakahlia": ["Mansoura University Hospital", "International Specialized Hospital", "Emergency Hospital Mansoura", "Children's University Hospital"],
+  "Red Sea": ["Hurghada General Hospital", "El Gouna Hospital", "Nile Hospital", "Red Sea Hospital"],
+  "Beheira": ["Damanhur National Medical Institute", "Kafr El Dawar General Hospital", "Rashid General Hospital"],
+  "Fayoum": ["Fayoum University Hospital", "Fayoum General Hospital", "Tamia General Hospital"],
+  "Gharbia": ["Tanta University Hospital", "El Mahalla General Hospital", "Kafr El Zayat General Hospital"],
+  "Ismailia": ["Suez Canal University Hospital", "Ismailia General Hospital", "Ismailia Medical Complex"],
+  "Menofia": ["Menoufia University Hospital", "Shebin El Kom Teaching Hospital", "Quwaysna General Hospital"],
+  "Minya": ["Minya University Hospital", "Minya General Hospital", "Mallawy General Hospital"],
+  "Qalyubia": ["Banha University Hospital", "Banha Teaching Hospital", "Qalyub General Hospital"],
+  "New Valley": ["El Kharga General Hospital", "Dakhla General Hospital", "Paris Hospital"],
+  "Suez": ["Suez General Hospital", "Suez Insurance Hospital", "Suez Medical Complex"],
+  "Aswan": ["Aswan University Hospital", "Aswan Specialized Hospital", "Magdi Yacoub Heart Center"],
+  "Assiut": ["Assiut University Hospital", "El Mabara Hospital", "Assiut General Hospital"],
+  "Beni Suef": ["Beni Suef University Hospital", "Beni Suef General Hospital", "Nasser General Hospital"],
+  "Port Said": ["El Nasr Hospital", "Port Said General Hospital", "Al-Tadamon Hospital"],
+  "Damietta": ["Damietta General Hospital", "Damietta Specialized Hospital", "Azhar University Hospital"],
+  "Sharqia": ["Zagazig University Hospital", "Al-Ahrar General Hospital", "Mina Al-Qamh Hospital"],
+  "South Sinai": ["Sharm El Sheikh International Hospital", "Dahab Hospital", "Tor Sinai General Hospital"],
+  "Kafr El Sheikh": ["Kafr El Sheikh University Hospital", "Kafr El Sheikh General Hospital", "Desouk General Hospital"],
+  "Matrouh": ["Marsa Matrouh General Hospital", "El Alamein Hospital", "Dabaa Hospital"],
+  "Luxor": ["Luxor International Hospital", "Luxor General Hospital", "Armant General Hospital"],
+  "Qena": ["Qena University Hospital", "Qena General Hospital", "Naga Hammadi Hospital"],
+  "North Sinai": ["El Arish General Hospital", "Bir El Abd Hospital", "Sheikh Zuweid Hospital"],
+  "Sohag": ["Sohag University Hospital", "Sohag General Hospital", "Tahta General Hospital"]
+};

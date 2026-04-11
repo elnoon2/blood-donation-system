@@ -1,0 +1,62 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+/* Custom animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.6s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.6s ease-out;
+}
+
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+/* Grid pattern background */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(193, 18, 31, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(193, 18, 31, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
