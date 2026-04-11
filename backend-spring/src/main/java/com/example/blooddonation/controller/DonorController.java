@@ -30,7 +30,14 @@ public class DonorController {
     }
 
     @GetMapping("/search")
-    public List<Donor> searchDonors(@RequestParam String bloodType, @RequestParam(required = false) String governorate) {
+    public List<Donor> searchDonors(@RequestParam(required = false) String bloodType, @RequestParam(required = false) String governorate) {
+        if (bloodType == null || bloodType.isBlank() || bloodType.equalsIgnoreCase("all") || bloodType.equalsIgnoreCase("Not Set")) {
+             if (governorate != null && !governorate.isBlank() && !governorate.equalsIgnoreCase("all")) {
+                 return donorRepository.findByUserGovernorateIgnoreCase(governorate);
+             }
+             return donorRepository.findAll();
+        }
+
         List<String> compatibleTypes = com.example.blooddonation.util.BloodCompatibilityUtil.getCompatibleDonorTypes(bloodType);
         
         if (governorate != null && !governorate.isBlank() && !governorate.equalsIgnoreCase("all")) {

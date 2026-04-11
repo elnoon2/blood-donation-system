@@ -62,18 +62,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsConnected(true);
       
       // Subscribe to private queue - Spring handles the /user prefix resolution
-      client.subscribe('/user/queue/messages', (message: IMessage) => {
+      const subscription = client.subscribe('/user/queue/messages', (message: IMessage) => {
         try {
           const newMessage = JSON.parse(message.body);
-          console.log('STOMP DEBUG: Received incoming message:', newMessage);
+          console.log('STOMP DEBUG [Receive]: incoming message from server:', newMessage);
           
           setMessages((prev) => {
-            // Check if message already exists (to avoid duplicate from mirror if we updated optimistically)
-            const exists = prev.some(m => 
-              (m.id && m.id === newMessage.id) || 
-              (m.content === newMessage.content && m.senderId === newMessage.senderId && Math.abs(new Date(m.timestamp || 0).getTime() - new Date(newMessage.timestamp || 0).getTime()) < 5000)
+            // Check if message already exists by ID
+            const isDuplicate = prev.some(m => 
+              (newMessage.id && m.id === newMessage.id) || 
+              (m.content === newMessage.content && m.senderId === newMessage.senderId && Math.abs(new Date(m.timestamp || 0).getTime() - new Date(newMessage.timestamp || 0).getTime()) < 1000)
             );
-            if (exists) return prev;
+            
+            if (isDuplicate) return prev;
+            console.log('STOMP DEBUG [UI]: Adding message to state');
             return [...prev, newMessage];
           });
 
@@ -91,14 +93,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           }
         } catch (e) {
-          console.error('Failed to parse incoming message', e);
+          console.error('STOMP DEBUG [Parse Error]: Failed to parse incoming message', e);
         }
       });
+      console.log('STOMP DEBUG [Sub]: Subscribed to /user/queue/messages | SubID:', subscription.id);
     };
 
     client.onStompError = (frame) => {
-      console.error('Broker reported error: ' + frame.headers['message']);
-      console.error('Additional details: ' + frame.body);
+      console.error('STOMP DEBUG [Error]: Broker reported error:', frame.headers['message']);
+      console.error('STOMP DEBUG [Error Details]:', frame.body);
       setIsConnected(false);
     };
 

@@ -97,7 +97,8 @@ export function DashboardPage() {
     const fetchDonors = async () => {
       setDonorsLoading(true);
       try {
-        const response = await api.get("/donors/search");
+        const params = user?.bloodType ? `?bloodType=${encodeURIComponent(user.bloodType)}` : "";
+        const response = await api.get(`/donors/search${params}`);
         setDonors(response.data || []);
       } catch (error) {
         console.error("Failed to fetch donors", error);

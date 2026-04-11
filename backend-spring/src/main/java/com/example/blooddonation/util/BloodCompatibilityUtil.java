@@ -20,6 +20,9 @@ public class BloodCompatibilityUtil {
     }
 
     public static List<String> getCompatibleDonorTypes(String recipientType) {
+        if (recipientType == null || recipientType.isBlank()) {
+            return Collections.emptyList();
+        }
         return COMPATIBILITY_MAP.getOrDefault(recipientType.toUpperCase(), Collections.singletonList(recipientType));
     }
 }

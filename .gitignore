@@ -1,0 +1,46 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.server/
+
+# IDE / Editor folders
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+.project
+.classpath
+.settings/
+.nb-gradle/
+
+# Environment variables
+.env
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Others
+.gemini/
+.temp/
+tmp/

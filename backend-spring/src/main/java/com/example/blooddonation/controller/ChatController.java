@@ -30,7 +30,7 @@ public class ChatController {
 
     @MessageMapping("/chat.send")
     public void sendMessage(@org.springframework.messaging.handler.annotation.Payload ChatMessage chatMessage) {
-        System.out.println("Received WebSocket message: " + chatMessage.getContent() + " for receiver: " + chatMessage.getReceiverId());
+        System.out.println("WebSocket DEBUG [Send]: content='" + chatMessage.getContent() + "' | from=" + chatMessage.getSenderId() + " | to=" + chatMessage.getReceiverId());
         User sender = userRepository.findById(chatMessage.getSenderId()).orElse(null);
         User receiver = userRepository.findById(chatMessage.getReceiverId()).orElse(null);
 
@@ -50,17 +50,17 @@ public class ChatController {
             chatMessage.setSenderName(sender.getName());
 
             // Send to receiver's private queue
-            System.out.println("Relaying message to receiver: " + receiver.getEmail());
+            System.out.println("WebSocket DEBUG [Relay]: sending to receiver=" + receiver.getEmail());
             messagingTemplate.convertAndSendToUser(
                     receiver.getEmail(), "/queue/messages", chatMessage);
             
             // Mirror back to sender's private queue
-            System.out.println("Relaying copy back to sender: " + sender.getEmail());
+            System.out.println("WebSocket DEBUG [Relay]: sending copy to sender=" + sender.getEmail());
             messagingTemplate.convertAndSendToUser(
                     sender.getEmail(), "/queue/messages", chatMessage);
-            System.out.println("WebSocket DEBUG: Relay process completed for session tracking.");
+            System.out.println("WebSocket DEBUG [Relay]: Process finished.");
         } else {
-            System.err.println("WebSocket DEBUG: Failed to relay message - sender=" + sender + ", receiver=" + receiver);
+            System.err.println("WebSocket DEBUG [Relay]: FAILED - sender found=" + (sender != null) + " | receiver found=" + (receiver != null));
         }
     }
 
