@@ -4,7 +4,7 @@ DELETE FROM users WHERE email = 'nourelkassyamin15@gmail.com';
 -- Insert Default Admin Account
 -- Password is 'nour12345' hashed using BCrypt. 
 -- Generated via standard BCrypt ($2y$10$ or $2a$10$)
-INSERT INTO users (name, email, password, blood_type, governorate, phone, role, created_at)
+INSERT INTO users (name, email, password, blood_type, governorate, phone, medical_id, role, created_at)
 VALUES (
     'Admin User', 
     'nourelkassyamin15@gmail.com', 
@@ -12,18 +12,51 @@ VALUES (
     'O+', 
     'Cairo',
     '0123456789',
+    'ADM-001',
     'ADMIN', 
     CURRENT_TIMESTAMP
 );
 
 -- Seed some donors and patients
-INSERT INTO users (name, email, password, blood_type, governorate, phone, role, created_at)
+INSERT INTO users (name, email, password, blood_type, governorate, phone, medical_id, role, created_at)
 VALUES 
-('John Donor', 'donor@example.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'A+', 'Alexandria', '0111111111', 'DONOR', CURRENT_TIMESTAMP),
-('Sarah Patient', 'patient@example.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'B-', 'Giza', '0122222222', 'PATIENT', CURRENT_TIMESTAMP);
+('John Donor', 'donor@example.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'A+', 'Alexandria', '0111111111', NULL, 'DONOR', CURRENT_TIMESTAMP),
+('Sarah Patient', 'patient@example.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'B-', 'Giza', '0122222222', NULL, 'PATIENT', CURRENT_TIMESTAMP);
 
 INSERT INTO donors (user_id, last_donation_date, availability_status)
 VALUES (2, '2026-01-01', 'AVAILABLE');
+
+-- Hospital Staff Account (nouryt6@gmail.com) - Password: nour12345
+DELETE FROM users WHERE email = 'nouryt6@gmail.com';
+INSERT INTO users (name, email, password, blood_type, governorate, phone, medical_id, role, is_approved, created_at)
+VALUES (
+    'Hospital Staff', 
+    'nouryt6@gmail.com', 
+    '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 
+    NULL, 
+    'Cairo',
+    '0123456789',
+    'HOSP-001',
+    'HOSPITAL', 
+    TRUE,
+    CURRENT_TIMESTAMP
+);
+
+-- Sample Doctor Account - Password: nour12345
+DELETE FROM users WHERE email = 'doctor@example.com';
+INSERT INTO users (name, email, password, blood_type, governorate, phone, medical_id, role, is_approved, created_at)
+VALUES (
+    'Dr. Ahmed Ali', 
+    'doctor@example.com', 
+    '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 
+    NULL, 
+    'Cairo',
+    '0100000000',
+    'DOC-12345',
+    'DOCTOR', 
+    TRUE,
+    CURRENT_TIMESTAMP
+);
 
 INSERT INTO hospitals (name, location, governorate, phone, email)
 VALUES 
@@ -78,10 +111,13 @@ VALUES
 ('Talkha Central Hospital', 'Talkha', 'Dakahlia', '050-7897893', 'talkha@hosp.eg'),
 ('Belqas Hospital', 'Belqas', 'Dakahlia', '050-3213214', 'belqas@hosp.eg');
 
+-- Link hospital staff user to Kasr Al-Ainy (hospital_id = 1)
+UPDATE users SET hospital_id = 1 WHERE email IN ('nouryt6@gmail.com', 'doctor@example.com');
+
 -- Seed initial blood requests for the dashboard
-INSERT INTO requests (user_id, blood_type, quantity_needed, governorate, phone, status, request_date)
+INSERT INTO requests (user_id, blood_type, quantity_needed, governorate, phone, status, request_date, hospital_id)
 VALUES 
-(3, 'A+', 2, 'Cairo', '01012345678', 'PENDING', CURRENT_DATE),
-(3, 'O-', 1, 'Giza', '01123456789', 'PENDING', CURRENT_DATE),
-(3, 'B+', 3, 'Alexandria', '01234567890', 'PENDING', CURRENT_DATE),
-(3, 'AB-', 1, 'Dakahlia', '01567890123', 'PENDING', CURRENT_DATE);
+(3, 'A+', 2, 'Cairo', '01012345678', 'PENDING', CURRENT_DATE, 1),
+(3, 'O-', 1, 'Giza', '01123456789', 'PENDING', CURRENT_DATE, 1),
+(3, 'B+', 3, 'Alexandria', '01234567890', 'PENDING', CURRENT_DATE, 2),
+(3, 'AB-', 1, 'Dakahlia', '01567890123', 'PENDING', CURRENT_DATE, 1);

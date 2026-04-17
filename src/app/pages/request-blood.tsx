@@ -22,7 +22,7 @@ export function RequestBloodPage() {
   const [formData, setFormData] = useState({
     bloodType: "A+",
     units: "1",
-    hospital: "",
+    hospitalId: "" as string | number,
     governorate: "Cairo",
     phone: "",
     urgency: "medium",
@@ -81,12 +81,14 @@ export function RequestBloodPage() {
             
             if (response.data && response.data.length > 0) {
                 setAvailableHospitals(response.data);
-                setFormData(prev => ({ ...prev, hospital: response.data[0].name }));
+                setFormData(prev => ({ ...prev, hospitalId: response.data[0].id }));
             } else {
                 console.warn("No hospitals found for this governorate, fetching all instead.");
                 const allResponse = await api.get("/hospitals");
                 setAvailableHospitals(allResponse.data);
-                setFormData(prev => ({ ...prev, hospital: "Other / Manual Entry" }));
+                if (allResponse.data.length > 0) {
+                  setFormData(prev => ({ ...prev, hospitalId: allResponse.data[0].id }));
+                }
             }
         } catch (error) {
             console.error("Failed to fetch hospitals", error);
@@ -118,6 +120,7 @@ export function RequestBloodPage() {
         requesterLongitude: requesterLocation?.lng,
         requesterMapLink: requesterLocation?.mapLink,
         status: "PENDING",
+        hospitalId: formData.hospitalId ? Number(formData.hospitalId) : null,
       });
       
       toast.success("Blood request submitted successfully!", {
@@ -195,20 +198,14 @@ export function RequestBloodPage() {
                     <select
                       id="hospital"
                       className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={formData.hospital}
-                      onChange={(e) => setFormData({ ...formData, hospital: e.target.value })}
-                      required
+                      value={formData.hospitalId}
+                      onChange={(e) => setFormData({ ...formData, hospitalId: e.target.value })}
                       disabled={hospitalsLoading}
                     >
-                      {hospitalsLoading ? (
-                        <option>Loading regional hospitals...</option>
-                      ) : availableHospitals.length > 0 ? (
-                        availableHospitals.map((h) => (
-                          <option key={h.id} value={h.name}>{h.name}</option>
-                        ))
-                      ) : (
-                        <option value="Other">Other / Manual Entry</option>
-                      )}
+                      <option value="">(Optional) No Specific Hospital</option>
+                      {!hospitalsLoading && availableHospitals.map((h) => (
+                        <option key={h.id} value={h.id}>{h.name} - {h.location}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -14,18 +14,20 @@ public class UserDetailsImpl implements UserDetails {
     private Long id;
     private String name;
     private String email;
+    private boolean isApproved;
 
     @JsonIgnore
     private String password;
 
     private Collection<? extends GrantedAuthority> authorities;
 
-    public UserDetailsImpl(Long id, String name, String email, String password,
+    public UserDetailsImpl(Long id, String name, String email, String password, boolean isApproved,
                            Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.password = password;
+        this.isApproved = isApproved;
         this.authorities = authorities;
     }
 
@@ -37,6 +39,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getName(),
                 user.getEmail(),
                 user.getPassword(),
+                user.getIsApproved(),
                 Collections.singletonList(authority));
     }
 
@@ -63,5 +66,5 @@ public class UserDetailsImpl implements UserDetails {
     public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() { return isApproved; }
 }

@@ -28,7 +28,8 @@ import {
   ChevronRight,
   ClipboardList,
   Trash2,
-  Plus
+  Plus,
+  FileText
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useAuth } from "../context/AuthContext";
@@ -57,7 +58,9 @@ export function AdminDashboardPage() {
     donors: [],
     patients: [],
     requests: [],
-    hospitals: []
+    hospitals: [],
+    approvals: [],
+    forms: []
   });
 
   const [filters, setFilters] = useState({
@@ -101,6 +104,8 @@ export function AdminDashboardPage() {
       else if (tab === "patients") endpoint = "/admin/patients";
       else if (tab === "requests") endpoint = "/admin/requests";
       else if (tab === "hospitals") endpoint = "/admin/hospitals";
+      else if (tab === "approvals") endpoint = "/admin/hospitals/pending";
+      else if (tab === "forms") endpoint = "/verify-donation/forms";
       
       if (endpoint) {
         const url = `${endpoint}?${params.toString()}`;
@@ -163,6 +168,21 @@ export function AdminDashboardPage() {
       fetchDashboardStats();
     } catch (error) {
       console.error("Failed to update status", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveHospital = async (userId: number, approve: boolean) => {
+    try {
+      setLoading(true);
+      await api.patch(`/admin/users/${userId}/approve?approve=${approve}`);
+      toast.success(`Hospital account ${approve ? 'approved' : 'rejected'} successfully.`);
+      fetchListData("approvals");
+      fetchDashboardStats();
+    } catch (error) {
+      console.error("Failed to approve hospital", error);
+      toast.error("Failed to process approval");
     } finally {
       setLoading(false);
     }
@@ -237,6 +257,8 @@ export function AdminDashboardPage() {
           { id: "patients", label: "Patients", icon: Users },
           { id: "requests", label: "Requests", icon: Heart },
           { id: "hospitals", label: "Hospitals", icon: Hospital },
+          { id: "approvals", label: "Approvals", icon: ClipboardList },
+          { id: "forms", label: "Form Submissions", icon: FileText },
         ].map((item) => (
           <button
             key={item.id}
@@ -550,6 +572,25 @@ export function AdminDashboardPage() {
                                         <TableHead className="py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right px-8">Actions</TableHead>
                                     </TableRow>
                                 )}
+                                {activeTab === "approvals" && (
+                                    <TableRow className="border-none hover:bg-transparent">
+                                        <TableHead className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Account Details</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Associated Facility</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact Info</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right px-8">Actions</TableHead>
+                                    </TableRow>
+                                )}
+                                {activeTab === "forms" && (
+                                    <TableRow className="border-none hover:bg-transparent text-slate-500">
+                                        <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Patient Identity</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black uppercase tracking-widest text-center">Blood</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black uppercase tracking-widest">Governorate</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black uppercase tracking-widest">Doctor (Authorized)</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black uppercase tracking-widest">Dr. License</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black uppercase tracking-widest">Dr. ID Image</TableHead>
+                                        <TableHead className="py-5 text-[10px] font-black uppercase tracking-widest text-right px-8">Verified At</TableHead>
+                                    </TableRow>
+                                )}
                             </TableHeader>
                             <TableBody>
                                 {dataLists[activeTab]?.length > 0 ? (
@@ -658,17 +699,21 @@ export function AdminDashboardPage() {
                                                         </TableCell>
                                                         <TableCell className="py-5">
                                                             <div className="flex flex-col gap-1.5">
-                                                                <Badge className={`${item.status === 'PENDING' ? 'bg-orange-500' : item.status === 'APPROVED' ? 'bg-green-500' : 'bg-red-500'} text-white text-[9px] font-black`}>
+                                                                <Badge className={`${item.status === 'PENDING' || item.status === 'UNDER_REVIEW' ? 'bg-orange-500' : item.status === 'HOSPITAL_CONFIRMED' ? 'bg-green-500' : item.status === 'MATCHED_DONOR' ? 'bg-blue-500' : item.status === 'DONATION_COMPLETED' ? 'bg-indigo-500' : 'bg-gray-500'} text-white text-[9px] font-black`}>
                                                                     {item.status || 'UNKNOWN'}
                                                                 </Badge>
                                                                 <select 
-                                                                    className="text-[9px] bg-transparent border-none outline-none font-bold text-gray-400 cursor-pointer hover:text-primary transition-colors"
+                                                                    className="text-[9px] bg-transparent border-none outline-none font-bold text-gray-400 cursor-pointer hover:text-primary transition-colors [&>option]:text-black"
                                                                     value={item.status}
                                                                     onChange={(e) => handleUpdateStatus(item.id, e.target.value)}
                                                                 >
                                                                     <option value="PENDING">Pending</option>
-                                                                    <option value="APPROVED">Approve</option>
-                                                                    <option value="REJECTED">Reject</option>
+                                                                    <option value="UNDER_REVIEW">Under Review</option>
+                                                                    <option value="HOSPITAL_CONFIRMED">Hospital Confirmed</option>
+                                                                    <option value="MATCHED_DONOR">Matched</option>
+                                                                    <option value="DONATION_COMPLETED">Donation Completed</option>
+                                                                    <option value="REJECTED">Rejected</option>
+                                                                    <option value="CANCELLED">Cancelled</option>
                                                                 </select>
                                                             </div>
                                                         </TableCell>
@@ -731,12 +776,89 @@ export function AdminDashboardPage() {
                                                         </TableCell>
                                                     </>
                                                 )}
+                                                {activeTab === "approvals" && (
+                                                    <>
+                                                        <TableCell className="px-8 py-5">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="bg-amber-100 p-2 rounded-lg">
+                                                                    <Building2 className="w-4 h-4 text-amber-600" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-gray-900 text-sm">{u.name}</p>
+                                                                    <p className="text-[10px] text-gray-400">{u.email}</p>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="py-5">
+                                                            <Badge className="bg-primary/10 text-primary border-none text-[10px] uppercase font-black tracking-tighter">
+                                                                {u.hospital?.name || "Unknown Facility"}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="py-5">
+                                                            <span className="text-xs font-medium text-gray-600">{u.phone || 'N/A'}</span>
+                                                        </TableCell>
+                                                        <TableCell className="py-5 text-right px-8 space-x-2">
+                                                            <Button 
+                                                                variant="default" 
+                                                                size="sm" 
+                                                                className="h-8 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs"
+                                                                onClick={() => handleApproveHospital(u.id, true)}
+                                                            >
+                                                                Approve
+                                                            </Button>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-8 border-red-200 text-red-500 hover:bg-red-50 rounded-lg text-xs"
+                                                                onClick={() => handleApproveHospital(u.id, false)}
+                                                            >
+                                                                Reject
+                                                            </Button>
+                                                        </TableCell>
+                                                    </>
+                                                )}
+                                                {activeTab === "forms" && (
+                                                    <>
+                                                        <TableCell className="px-8 py-5">
+                                                            <div className="font-bold text-gray-900 leading-none">{item.patientName}</div>
+                                                            <div className="text-[10px] text-gray-400 mt-1">N-ID: {item.patientNationalId}</div>
+                                                            <div className="text-[9px] text-blue-500 font-bold">{item.patientPhone}</div>
+                                                        </TableCell>
+                                                        <TableCell className="py-5 text-center">
+                                                            <Badge className="bg-red-600 text-white font-black text-[10px] shadow-sm">{item.bloodType}</Badge>
+                                                        </TableCell>
+                                                        <TableCell className="py-5">
+                                                            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">{item.patientGovernorate}</span>
+                                                        </TableCell>
+                                                        <TableCell className="py-5">
+                                                            <div className="flex items-center gap-2">
+                                                                <Stethoscope className="w-3.5 h-3.5 text-blue-500" />
+                                                                <span className="font-black text-xs text-slate-900">{item.doctorName}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="py-5 font-mono text-[10px] text-slate-500">{item.doctorIdNumber}</TableCell>
+                                                        <TableCell className="py-5">
+                                                            {item.doctorIdImage ? (
+                                                                <div className="w-16 h-10 rounded-lg overflow-hidden border border-slate-200 shadow-md hover:scale-[4] hover:z-50 transition-all cursor-zoom-in origin-left bg-white">
+                                                                    <img src={item.doctorIdImage} alt="Dr ID" className="w-full h-full object-cover" />
+                                                                </div>
+                                                            ) : (
+                                                                <Badge variant="destructive" className="text-[9px]">Missing ID</Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="py-5 text-right px-8">
+                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                                                {new Date(item.createdAt).toLocaleString('en-EG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </TableCell>
+                                                    </>
+                                                )}
                                             </TableRow>
                                         );
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={activeTab === "hospitals" ? 5 : activeTab === "requests" ? 6 : activeTab === "donors" ? 6 : 5} className="py-32 text-center">
+                                        <TableCell colSpan={activeTab === "hospitals" ? 5 : activeTab === "approvals" ? 4 : activeTab === "requests" ? 6 : activeTab === "donors" ? 6 : activeTab === "forms" ? 8 : 5} className="py-32 text-center">
                                             <div className="flex flex-col items-center justify-center space-y-4">
                                                 <div className="bg-gray-50 p-4 rounded-full">
                                                     <ClipboardList className="w-10 h-10 text-gray-300" />

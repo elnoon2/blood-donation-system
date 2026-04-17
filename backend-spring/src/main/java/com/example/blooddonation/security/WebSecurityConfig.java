@@ -81,6 +81,7 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/hospitals/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/requests").permitAll()
+                .requestMatchers("/api/verify-donation/**").permitAll()
                 .requestMatchers("/ws-chat/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 // Everything else requires authentication

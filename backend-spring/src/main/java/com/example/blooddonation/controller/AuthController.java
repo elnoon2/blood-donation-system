@@ -8,6 +8,7 @@ import com.example.blooddonation.entity.Donor;
 import com.example.blooddonation.entity.User;
 import com.example.blooddonation.enums.Role;
 import com.example.blooddonation.repository.DonorRepository;
+import com.example.blooddonation.repository.HospitalRepository;
 import com.example.blooddonation.repository.UserRepository;
 import com.example.blooddonation.security.JwtUtils;
 import com.example.blooddonation.security.UserDetailsImpl;
@@ -33,6 +34,9 @@ public class AuthController {
 
     @Autowired
     DonorRepository donorRepository;
+
+    @Autowired
+    HospitalRepository hospitalRepository;
 
     @Autowired
     PasswordEncoder encoder;
@@ -82,7 +86,16 @@ public class AuthController {
                 .governorate(signUpRequest.getGovernorate())
                 .phone(signUpRequest.getPhone())
                 .role(roleEnum)
+                .isApproved(roleEnum != Role.HOSPITAL) // Hospital needs approval
                 .build();
+
+        if (roleEnum == Role.HOSPITAL) {
+            if (signUpRequest.getHospitalId() == null) {
+                return ResponseEntity.badRequest().body(new MessageResponse("Error: Hospital ID is required for hospital role"));
+            }
+            user.setHospital(hospitalRepository.findById(signUpRequest.getHospitalId())
+                .orElseThrow(() -> new RuntimeException("Hospital not found")));
+        }
 
         userRepository.save(user);
 
@@ -92,6 +105,10 @@ public class AuthController {
                 .availabilityStatus("AVAILABLE")
                 .build();
             donorRepository.save(donor);
+        }
+
+        if (roleEnum == Role.HOSPITAL) {
+            return ResponseEntity.ok(new MessageResponse("Hospital registered successfully! Please wait for admin approval before logging in."));
         }
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));

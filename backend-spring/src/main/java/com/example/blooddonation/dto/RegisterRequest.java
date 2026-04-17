@@ -19,7 +19,7 @@ public class RegisterRequest {
     @Size(min = 6, max = 40)
     private String password;
 
-    @NotBlank
+
     private String bloodType;
 
     @NotBlank
@@ -29,5 +29,7 @@ public class RegisterRequest {
     private String phone;
 
     @NotBlank
-    private String role; // "DONOR" or "PATIENT"
+    private String role; // "DONOR", "PATIENT", or "HOSPITAL"
+
+    private Long hospitalId; // Required if role is HOSPITAL
 }

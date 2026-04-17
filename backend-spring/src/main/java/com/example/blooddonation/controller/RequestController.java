@@ -13,6 +13,7 @@ import com.example.blooddonation.enums.Role;
 import com.example.blooddonation.enums.RequestStatus;
 import com.example.blooddonation.exception.ResourceNotFoundException;
 import com.example.blooddonation.repository.DonorRepository;
+import com.example.blooddonation.repository.HospitalRepository;
 import com.example.blooddonation.repository.NotificationRepository;
 import com.example.blooddonation.repository.RequestRepository;
 import com.example.blooddonation.repository.UserRepository;
@@ -44,6 +45,9 @@ public class RequestController {
     DonorRepository donorRepository;
 
     @Autowired
+    HospitalRepository hospitalRepository;
+
+    @Autowired
     NotificationRepository notificationRepository;
 
     @Autowired
@@ -65,41 +69,58 @@ public class RequestController {
                 .requesterMapLink(dto.getRequesterMapLink())
                 .status(RequestStatus.PENDING)
                 .requestDate(LocalDate.now())
+                .hospital(dto.getHospitalId() != null ? hospitalRepository.findById(dto.getHospitalId())
+                    .orElse(null) : null)
                 .build();
 
-        requestRepository.save(request);
-
-        // Broadcast to all active users
-        messagingTemplate.convertAndSend("/topic/requests", "NEW_REQUEST");
-
-        // Notify matching donors
-        List<Donor> matchingDonors = donorRepository.findByUserBloodType(dto.getBloodType());
-        for (Donor d : matchingDonors) {
-            if ("AVAILABLE".equalsIgnoreCase(d.getAvailabilityStatus())) {
-                Notification notification = Notification.builder()
-                    .user(d.getUser())
-                    .message("Urgent blood request for type " + dto.getBloodType())
-                    .type(NotificationType.MATCH)
-                    .build();
-                notificationRepository.save(notification);
-            }
-        }
-
-        return ResponseEntity.ok(new MessageResponse("Request created successfully"));
+        return ResponseEntity.ok(new MessageResponse("Request created successfully. Awaiting hospital confirmation."));
     }
 
     @GetMapping
-    public List<RequestResponseDTO> getAllRequests() {
+    public List<RequestResponseDTO> getAllRequests(Authentication auth) {
+        User currentUser = null;
+        boolean isAdmin = false;
+        boolean isHospital = false;
+        Long currentUserId = null;
+
+        if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl) {
+            UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
+            currentUserId = principal.getId();
+            currentUser = userRepository.findById(currentUserId).orElse(null);
+            isAdmin = currentUser != null && currentUser.getRole() == Role.ADMIN;
+            isHospital = currentUser != null && currentUser.getRole() == Role.HOSPITAL;
+        }
+
+        final Long finalUserId = currentUserId;
+        final boolean finalIsAdmin = isAdmin;
+        final boolean finalIsHospital = isHospital;
+        final User finalUser = currentUser;
+
         return requestRepository.findAll().stream()
-                .map(RequestResponseDTO::from)
+                .filter(r -> {
+                    if (r == null || r.getStatus() == null) return false;
+                    if (finalIsAdmin || finalIsHospital) return true;
+                    // Owners can see their own requests
+                    if (finalUserId != null && r.getUser() != null && r.getUser().getId().equals(finalUserId)) return true;
+                    
+                    // Donors/Public can see Pending, Confirmed or Matched requests
+                    RequestStatus s = r.getStatus();
+                    return s == RequestStatus.PENDING ||
+                           s == RequestStatus.HOSPITAL_CONFIRMED || 
+                           s == RequestStatus.MATCHED_DONOR;
+                })
+                .map(r -> RequestResponseDTO.from(r, finalUser))
                 .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public RequestResponseDTO getRequest(@PathVariable Long id) {
+    public RequestResponseDTO getRequest(@PathVariable Long id, Authentication auth) {
+        UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
+        User currentUser = userRepository.findById(principal.getId()).orElse(null);
         return RequestResponseDTO.from(
             requestRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Request not found"))
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found")),
+            currentUser
         );
     }
 
@@ -128,10 +149,7 @@ public class RequestController {
         User actingUser = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Set<String> roles = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toSet());
-        boolean isAdmin = roles.contains("ROLE_ADMIN") || actingUser.getRole() == Role.ADMIN;
+        boolean isAdmin = actingUser.getRole() == Role.ADMIN;
         boolean isOwnerPatient = request.getUser() != null && request.getUser().getId().equals(actingUser.getId());
 
         if (!isAdmin && !isOwnerPatient && actingUser.getRole() != Role.DONOR) {
@@ -146,15 +164,41 @@ public class RequestController {
         }
 
         if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
-            RequestStatus nextStatus = RequestStatus.valueOf(dto.getStatus().toUpperCase());
-            if (nextStatus == RequestStatus.COMPLETED &&
-                    !(Boolean.TRUE.equals(request.getDonorConfirmed()) && Boolean.TRUE.equals(request.getPatientConfirmed()))) {
-                return ResponseEntity.badRequest().body(new MessageResponse("Both donor and patient must confirm before completion"));
+            RequestStatus nextStatus;
+            try {
+                System.out.println("Updating status to: [" + dto.getStatus().toUpperCase() + "]");
+                nextStatus = RequestStatus.valueOf(dto.getStatus().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(new MessageResponse("Invalid status constant: " + dto.getStatus()));
             }
-            request.setStatus(nextStatus);
+            
+            // Allow patient to cancel their request
+            if (nextStatus == RequestStatus.CANCELLED && isOwnerPatient) {
+                request.setStatus(nextStatus);
+            } else if (!isAdmin) {
+                // Donors can move to MATCHED_DONOR to start the QR flow
+                boolean canMatch = actingUser.getRole() == Role.DONOR && 
+                                  nextStatus == RequestStatus.MATCHED_DONOR && 
+                                  (request.getStatus() == RequestStatus.HOSPITAL_CONFIRMED || request.getStatus() == RequestStatus.PENDING);
+                
+                if (canMatch) {
+                    request.setStatus(nextStatus);
+                    request.setDonorConfirmed(true);
+                    request.setMatchedDonor(actingUser);
+                    
+                    if (request.getVerificationCode() == null || request.getVerificationCode().isBlank()) {
+                        String code = String.format("%06d", new java.util.Random().nextInt(999999));
+                        request.setVerificationCode(code);
+                    }
+                } else {
+                    return ResponseEntity.status(403).body(new MessageResponse("Transition not allowed for your role. Status: " + request.getStatus()));
+                }
+            } else {
+                request.setStatus(nextStatus);
+            }
         }
 
         requestRepository.save(request);
-        return ResponseEntity.ok(RequestResponseDTO.from(request));
+        return ResponseEntity.ok(RequestResponseDTO.from(request, actingUser));
     }
 }

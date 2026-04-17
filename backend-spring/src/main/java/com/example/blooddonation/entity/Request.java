@@ -57,4 +57,15 @@ public class Request {
 
     @Column(name = "request_date", nullable = false)
     private LocalDate requestDate;
+
+    @Column(name = "verification_code", length = 6)
+    private String verificationCode;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "hospital_id")
+    private Hospital hospital;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "matched_donor_id")
+    private User matchedDonor;
 }

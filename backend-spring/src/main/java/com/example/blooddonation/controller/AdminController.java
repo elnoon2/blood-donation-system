@@ -2,6 +2,7 @@ package com.example.blooddonation.controller;
 
 import com.example.blooddonation.enums.Role;
 import com.example.blooddonation.enums.RequestStatus;
+import com.example.blooddonation.dto.MessageResponse;
 import com.example.blooddonation.dto.RequestResponseDTO;
 import com.example.blooddonation.entity.*;
 import com.example.blooddonation.repository.*;
@@ -80,8 +81,15 @@ public class AdminController {
     @GetMapping("/requests")
     public List<RequestResponseDTO> getAllRequests(
             @RequestParam(required = false) String governorate,
-            @RequestParam(required = false) String bloodType) {
+            @RequestParam(required = false) String bloodType,
+            org.springframework.security.core.Authentication auth) {
         
+        User currentUser = null;
+        if (auth != null && auth.getPrincipal() instanceof com.example.blooddonation.security.UserDetailsImpl) {
+            com.example.blooddonation.security.UserDetailsImpl principal = (com.example.blooddonation.security.UserDetailsImpl) auth.getPrincipal();
+            currentUser = userRepository.findById(principal.getId()).orElse(null);
+        }
+
         List<Request> requests;
         if (governorate != null && !"all".equals(governorate) && bloodType != null && !"all".equals(bloodType)) {
             requests = requestRepository.findByGovernorateAndBloodType(governorate, bloodType);
@@ -92,7 +100,8 @@ public class AdminController {
         } else {
             requests = requestRepository.findAll();
         }
-        return requests.stream().map(RequestResponseDTO::from).collect(Collectors.toList());
+        final User finalCurrentUser = currentUser;
+        return requests.stream().map(r -> RequestResponseDTO.from(r, finalCurrentUser)).collect(Collectors.toList());
     }
 
     @GetMapping("/hospitals")
@@ -139,6 +148,23 @@ public class AdminController {
         return requestRepository.findById(id).map(request -> {
             request.setStatus(RequestStatus.valueOf(status.toUpperCase()));
             return ResponseEntity.ok(requestRepository.save(request));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/hospitals/pending")
+    public List<User> getPendingHospitals() {
+        return userRepository.findByRole(Role.HOSPITAL).stream()
+                .filter(u -> !Boolean.TRUE.equals(u.getIsApproved()))
+                .collect(Collectors.toList());
+    }
+
+    @PatchMapping("/users/{id}/approve")
+    @Transactional
+    public ResponseEntity<?> approveUser(@PathVariable Long id, @RequestParam boolean approve) {
+        return userRepository.findById(id).map(user -> {
+            user.setIsApproved(approve);
+            userRepository.save(user);
+            return ResponseEntity.ok(new MessageResponse("User " + (approve ? "approved" : "disapproved") + " successfully"));
         }).orElse(ResponseEntity.notFound().build());
     }
 }

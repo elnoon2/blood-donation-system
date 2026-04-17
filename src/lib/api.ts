@@ -46,9 +46,10 @@ api.interceptors.response.use(
     const isPublicEndpoint = url.includes('/api/hospitals') || url.includes('/api/auth') || url.includes('/api/requests');
 
     // Avoid forced redirect loops; just clear stale session on real unauthorized protected calls.
-    if (hasToken && status === 401 && !isPublicEndpoint) {
+    if (hasToken && (status === 401 || status === 403) && !isPublicEndpoint) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

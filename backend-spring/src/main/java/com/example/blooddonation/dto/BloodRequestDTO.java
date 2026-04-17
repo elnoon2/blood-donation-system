@@ -25,4 +25,6 @@ public class BloodRequestDTO {
     private Double requesterLongitude;
 
     private String requesterMapLink;
+
+    private Long hospitalId;
 }

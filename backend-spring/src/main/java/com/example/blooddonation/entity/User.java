@@ -37,9 +37,20 @@ public class User {
     @Column(name = "phone")
     private String phone;
 
+    @Column(name = "medical_id", unique = true)
+    private String medicalId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    @Column(name = "is_approved", nullable = false)
+    @Builder.Default
+    private Boolean isApproved = true;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "hospital_id")
+    private Hospital hospital;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

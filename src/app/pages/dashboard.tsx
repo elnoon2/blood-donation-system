@@ -3,7 +3,7 @@ import { Footer } from "../components/footer";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Droplet, Heart, Calendar, Bell, TrendingUp, MapPin, Phone, LocateFixed, Trash2, LayoutDashboard } from "lucide-react";
+import { Droplet, Heart, Calendar, Bell, TrendingUp, MapPin, Phone, LocateFixed, Trash2, LayoutDashboard, Clock, PersonStanding, Check, Droplets } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import api from "../../lib/api";
@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useChat } from "../context/ChatContext";
 import { ChatBox } from "../components/chat-box";
+import { QRCodeCanvas } from "qrcode.react";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -46,6 +47,8 @@ export function DashboardPage() {
   const [requestConfirmMap, setRequestConfirmMap] = useState<
     Record<number, { donorConfirmed: boolean; patientConfirmed: boolean }>
   >({});
+  const [qrTokens, setQrTokens] = useState<Record<number, string>>({});
+  const [showQrMap, setShowQrMap] = useState<Record<number, boolean>>({});
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -111,8 +114,8 @@ export function DashboardPage() {
   }, [isPatient]);
 
   const handleHelpNow = (request: any) => {
-    toast.success("Donor Connection Request", {
-        description: `Please contact the requester for Type ${request.bloodType} at: ${request.phone}`,
+    toast.success("Donor Connection Process", {
+        description: `Please proceed to ${request.hospitalName || "the assigned hospital"}. Code needed for verification.`,
         duration: 10000,
     });
   };
@@ -184,7 +187,7 @@ export function DashboardPage() {
     );
   };
 
-  const statusSequence = ["PENDING", "ACCEPTED", "ON_THE_WAY", "DONATED", "COMPLETED"];
+  const statusSequence = ["PENDING", "UNDER_REVIEW", "HOSPITAL_CONFIRMED", "MATCHED_DONOR", "DONATION_COMPLETED"];
 
   const getEffectiveRequestStatus = (request: any) => requestStatusMap[request?.id] || request?.status || "PENDING";
 
@@ -195,11 +198,10 @@ export function DashboardPage() {
   };
 
   const getStatusBadgeClass = (status: string) => {
-    if (status === "PENDING") return "rounded-lg border-red-200 bg-red-50/50 text-red-600";
-    if (status === "ACCEPTED") return "rounded-lg border-blue-200 bg-blue-50 text-blue-700";
-    if (status === "ON_THE_WAY") return "rounded-lg border-amber-200 bg-amber-50 text-amber-700";
-    if (status === "DONATED") return "rounded-lg border-indigo-200 bg-indigo-50 text-indigo-700";
-    if (status === "COMPLETED") return "rounded-lg border-green-200 bg-green-50 text-green-700";
+    if (status === "PENDING" || status === "UNDER_REVIEW") return "rounded-lg border-red-200 bg-red-50 text-red-600";
+    if (status === "HOSPITAL_CONFIRMED") return "rounded-lg border-green-200 bg-green-50 text-green-700";
+    if (status === "MATCHED_DONOR") return "rounded-lg border-blue-200 bg-blue-50 text-blue-700";
+    if (status === "DONATION_COMPLETED") return "rounded-lg border-indigo-200 bg-indigo-50 text-indigo-700";
     return "rounded-lg border-gray-200 bg-gray-50 text-gray-600";
   };
 
@@ -215,6 +217,9 @@ export function DashboardPage() {
       });
       const updated = response.data;
       setRequestStatusMap((prev) => ({ ...prev, [request.id]: updated.status || nextStatus }));
+      if (nextStatus === "MATCHED_DONOR") {
+         setQrTokens(prev => ({ ...prev, [request.id]: "" })); // Trigger token fetch if needed
+      }
       setRequestConfirmMap((prev) => ({
         ...prev,
         [request.id]: {
@@ -236,6 +241,21 @@ export function DashboardPage() {
       description: `Request moved to ${nextStatus.replaceAll("_", " ")}`,
       duration: 3000,
     });
+  };
+
+  const handleShowQR = async (requestId: number) => {
+    if (qrTokens[requestId]) {
+        setShowQrMap(prev => ({ ...prev, [requestId]: !prev[requestId] }));
+        return;
+    }
+
+    try {
+        const response = await api.get(`/verify-donation/token/${requestId}`);
+        setQrTokens(prev => ({ ...prev, [requestId]: response.data.token }));
+        setShowQrMap(prev => ({ ...prev, [requestId]: true }));
+    } catch (error) {
+        toast.error("Failed to generate QR token.");
+    }
   };
 
   const handleDeleteRequest = async (requestId: number) => {
@@ -455,7 +475,13 @@ export function DashboardPage() {
                                   <div>
                                     <h4 className="font-black text-gray-900 text-lg">Requester: {request.userName}</h4>
                                     <div className="flex items-center gap-2 mt-1">
-                                       <Badge className={`${getStatusBadgeClass(effectiveStatus)} border-none text-[10px] font-black uppercase px-2 py-0.5`}>{effectiveStatus}</Badge>
+                                       <Badge className={`${getStatusBadgeClass(effectiveStatus)} border-none text-[10px] font-black uppercase px-2 py-0.5 flex items-center gap-1`}>
+                                         {(effectiveStatus === "PENDING" || effectiveStatus === "UNDER_REVIEW") && <Clock className="w-3 h-3" />}
+                                         {effectiveStatus === "HOSPITAL_CONFIRMED" && <Check className="w-3 h-3" />}
+                                         {effectiveStatus === "MATCHED_DONOR" && <PersonStanding className="w-3 h-3" />}
+                                         {effectiveStatus === "DONATION_COMPLETED" && <Droplets className="w-3 h-3" />}
+                                         {effectiveStatus.replace(/_/g, ' ')}
+                                       </Badge>
                                        <span className="text-[11px] text-gray-500 font-bold tracking-tight bg-white/50 px-2 py-0.5 rounded-lg border border-red-100/50">{request.governorate} • {request.requestDate}</span>
                                     </div>
                                   </div>
@@ -481,17 +507,47 @@ export function DashboardPage() {
                              </div>
                              
                              <div className="flex items-center justify-between pt-3 border-t border-red-100/50">
-                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none">Status Tracker</span>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-[10px] font-black text-primary hover:text-white hover:bg-primary uppercase tracking-widest h-8 px-3 rounded-lg border border-primary/20"
-                                  disabled={isCompleted}
-                                  onClick={() => updateRequestStatus(request, nextStatus)}
-                                >
-                                  {isCompleted ? "Goal Reached ✓" : `Update to: ${nextStatus.replace('_', ' ')} →`}
-                                </Button>
-                             </div>
+                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none">Action</span>
+                                   {isDonor && effectiveStatus === "MATCHED_DONOR" && (
+                                     <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="text-[10px] font-black border-red-200 text-red-600 hover:bg-red-50 uppercase tracking-widest h-8 px-3 rounded-lg"
+                                      onClick={() => handleShowQR(request.id)}
+                                     >
+                                       {showQrMap[request.id] ? "Hide QR" : "Scan to Verify"}
+                                     </Button>
+                                   )}
+                                   <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-[10px] font-black text-primary hover:text-white hover:bg-primary uppercase tracking-widest h-8 px-3 rounded-lg border border-primary/20"
+                                    disabled={!(isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED"))}
+                                    onClick={() => updateRequestStatus(request, "MATCHED_DONOR")}
+                                  >
+                                    {effectiveStatus === "DONATION_COMPLETED" ? "Completed ✓" : effectiveStatus === "MATCHED_DONOR" ? "Matched (Go to Hospital)" : (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) ? "Accept To Donate →" : "Awaiting Process"}
+                                  </Button>
+                                </div>
+
+                             {showQrMap[request.id] && qrTokens[request.id] && (
+                                <div className="mt-4 p-6 bg-white border border-dashed border-red-200 rounded-2xl flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                                   <div className="p-4 bg-white rounded-xl shadow-md border">
+                                      <QRCodeCanvas 
+                                        value={`http://192.168.100.17:5173/donor-form?request_id=${request.id}&donor_id=${user?.id}&patient_id=${request.userId}&token=${qrTokens[request.id]}`}
+                                        size={180}
+                                        level="H"
+                                        includeMargin={true}
+                                      />
+                                   </div>
+                                   <div className="text-center">
+                                      <p className="text-sm font-bold text-slate-900">Patient Verification QR</p>
+                                      <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Doctor must scan this to complete process</p>
+                                   </div>
+                                   <div className="flex items-center gap-2 p-2 bg-red-50 rounded text-red-600 font-mono text-[10px]">
+                                      Token: {qrTokens[request.id].substring(0, 16)}...
+                                   </div>
+                                </div>
+                             )}
                           </div>
                         );
                       })}

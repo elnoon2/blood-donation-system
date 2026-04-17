@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "react-router";
-import { Droplet, Mail, Lock, User, UserCircle, Phone, MapPin } from "lucide-react";
+import { Droplet, Mail, Lock, User, UserCircle, Phone, MapPin, Building2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card } from "../components/ui/card";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api, { API_BASE_URL } from "../../lib/api";
 import { toast } from "sonner";
 import { GOVERNORATES, BLOOD_TYPES } from "../../lib/location-data";
@@ -35,7 +35,12 @@ export function RegisterPage() {
     governorate: "Cairo",
     phone: "",
     role: "donor",
+    hospitalId: "" as string | number,
   });
+
+  const [hospitals, setHospitals] = useState<any[]>([]);
+
+  // Hospital fetching removed as doctors/hospitals no longer register publicly
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,10 +62,11 @@ export function RegisterPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        bloodType: formData.bloodType,
+        bloodType: formData.role === "hospital" ? null : formData.bloodType,
         governorate: formData.governorate,
         phone: formData.phone,
         role: formData.role.toUpperCase(),
+        hospitalId: formData.role === "hospital" ? Number(formData.hospitalId) : null,
       });
       
       toast.success("Account created successfully!", {
@@ -200,7 +206,7 @@ export function RegisterPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 ${formData.role !== "hospital" ? "md:grid-cols-2" : ""} gap-4`}>
                 <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="relative">
@@ -217,6 +223,7 @@ export function RegisterPage() {
                 </div>
                 </div>
 
+                {formData.role !== "hospital" && (
                 <div className="space-y-2">
                 <Label htmlFor="bloodType">Blood Type</Label>
                 <select
@@ -231,6 +238,7 @@ export function RegisterPage() {
                     ))}
                 </select>
                 </div>
+                )}
             </div>
 
             <div className="space-y-2">
@@ -278,6 +286,8 @@ export function RegisterPage() {
                 </div>
               </RadioGroup>
             </div>
+
+
 
             <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
               {loading ? (
