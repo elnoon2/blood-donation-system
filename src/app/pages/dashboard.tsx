@@ -12,8 +12,10 @@ import { toast } from "sonner";
 import { useChat } from "../context/ChatContext";
 import { ChatBox } from "../components/chat-box";
 import { QRCodeCanvas } from "qrcode.react";
+import { useNavigate } from "react-router";
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { openChat, subscribe, isConnected } = useChat();
   const normalizedRole = user?.role?.toUpperCase().replace("ROLE_", "") || "";
@@ -346,12 +348,22 @@ export function DashboardPage() {
                   </>
                 )}
                 {(isDonor || isAdmin) && (
-                  <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-red-50 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all">
-                    <div className="p-3 bg-red-100 rounded-xl text-red-600 group-hover:scale-110 transition-transform">
-                      <Heart className="w-8 h-8" />
-                    </div>
-                    <span>Browse Patient Requests</span>
-                  </Button>
+                  <>
+                    <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-red-50 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all">
+                      <div className="p-3 bg-red-100 rounded-xl text-red-600 group-hover:scale-110 transition-transform">
+                        <Heart className="w-8 h-8" />
+                      </div>
+                      <span>Browse Patient Requests</span>
+                    </Button>
+                    <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-green-50 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all" asChild>
+                      <Link to="/eligibility-form">
+                        <div className="p-3 bg-green-100 rounded-xl text-green-600 group-hover:scale-110 transition-transform">
+                          <Check className="w-8 h-8" />
+                        </div>
+                        <span>Can I Donate?</span>
+                      </Link>
+                    </Button>
+                  </>
                 )}
                 {isAdmin && (
                   <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-primary/5 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all" asChild>
@@ -523,9 +535,15 @@ export function DashboardPage() {
                                     size="sm" 
                                     className="text-[10px] font-black text-primary hover:text-white hover:bg-primary uppercase tracking-widest h-8 px-3 rounded-lg border border-primary/20"
                                     disabled={!(isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED"))}
-                                    onClick={() => updateRequestStatus(request, "MATCHED_DONOR")}
+                                    onClick={() => {
+                                      if (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) {
+                                        navigate(`/eligibility-form?requestId=${request.id}`);
+                                      } else {
+                                        updateRequestStatus(request, "MATCHED_DONOR");
+                                      }
+                                    }}
                                   >
-                                    {effectiveStatus === "DONATION_COMPLETED" ? "Completed ✓" : effectiveStatus === "MATCHED_DONOR" ? "Matched (Go to Hospital)" : (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) ? "Accept To Donate →" : "Awaiting Process"}
+                                    {effectiveStatus === "DONATION_COMPLETED" ? "Completed ✓" : effectiveStatus === "MATCHED_DONOR" ? "Matched (Go to Hospital)" : (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) ? "Check Eligibility & Accept →" : "Awaiting Process"}
                                   </Button>
                                 </div>
 

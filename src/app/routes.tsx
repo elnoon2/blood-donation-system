@@ -14,7 +14,10 @@ import { DesignSystemPage } from "./pages/design-system";
 import { NotFoundPage } from "./pages/not-found";
 import VerifyDonation from "./pages/verify-donation";
 import { ProtectedRoute, PublicRoute } from "./components/auth-guards";
-
+import { EligibilityForm } from "./pages/eligibility-form";
+import { EligibilityResult } from "./pages/eligibility-result";
+import { DonationOptions } from "./pages/donation-options";
+import { HomeCollectionForm } from "./pages/home-collection-form";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -91,6 +94,22 @@ export const router = createBrowserRouter([
   {
     path: "/verify-donation",
     Component: VerifyDonation,
+  },
+  {
+    path: "/eligibility-form",
+    Component: EligibilityForm,
+  },
+  {
+    path: "/eligibility-result",
+    Component: EligibilityResult,
+  },
+  {
+    path: "/donation-options",
+    Component: DonationOptions,
+  },
+  {
+    path: "/home-collection-form",
+    Component: HomeCollectionForm,
   },
   {
     path: "*",

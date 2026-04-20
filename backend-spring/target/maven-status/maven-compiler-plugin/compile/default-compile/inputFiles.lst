@@ -1,12 +1,17 @@
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\JwtResponse.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\BloodInventory.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\DonorExtensionController.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\DonorHealthAssessmentRepository.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\enums\EligibilityResult.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\InventoryController.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\Hospital.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\BloodDonationApplication.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\HomeCollectionRequestRepository.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\QRVerificationTokenRepository.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\DonationFormRepository.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\RegisterRequest.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\ChatController.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\DonorHealthAssessment.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\QRVerificationController.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\NotificationRepository.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\QRVerificationToken.java
@@ -14,6 +19,7 @@ C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\m
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\config\WebSocketConfig.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\Donor.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\BloodInventoryRepository.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\HomeCollectionRequest.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\enums\NotificationType.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\MessageRepository.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\RequestRepository.java
@@ -34,7 +40,9 @@ C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\m
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\HospitalVerifyController.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\ChatMessage.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\DonationVerificationRequest.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\service\EligibilityService.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\Message.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\HomeCollectionRequestDto.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\enums\RequestStatus.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\security\UserDetailsServiceImpl.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\DonationDTO.java
@@ -43,6 +51,7 @@ C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\m
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\entity\DonationForm.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\RequestResponseDTO.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\enums\Role.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\enums\CollectionRequestStatus.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\AuthController.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\repository\HospitalRepository.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\HospitalController.java
@@ -64,3 +73,4 @@ C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\m
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\security\UserDetailsImpl.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\MessageResponse.java
 C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\controller\RequestController.java
+C:\Users\LAP TREND\Downloads\Smart Blood Donation System UI\backend-spring\src\main\java\com\example\blooddonation\dto\EligibilityAssessmentDto.java

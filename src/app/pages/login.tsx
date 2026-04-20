@@ -13,11 +13,6 @@ import axios from "axios";
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const publicApi = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 15000,
-    headers: { "Content-Type": "application/json" },
-  });
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -34,11 +29,11 @@ export function LoginPage() {
 
     setLoading(true);
     try {
-      const response = await publicApi.post(`${API_BASE_URL}/auth/login`, formData);
+      const response = await api.post("/auth/login", formData);
       const { token } = response.data;
       
       // Fetch the full user object including bloodType, phone, etc
-      const meResponse = await publicApi.get(`${API_BASE_URL}/auth/me`, {
+      const meResponse = await api.get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` }
       });
       const fullUserData = meResponse.data;

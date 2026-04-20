@@ -73,6 +73,7 @@ public class RequestController {
                     .orElse(null) : null)
                 .build();
 
+        requestRepository.save(request);
         return ResponseEntity.ok(new MessageResponse("Request created successfully. Awaiting hospital confirmation."));
     }
 

@@ -62,8 +62,12 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest signUpRequest) {
+        System.out.println("[DEBUG] Registration request received for email: " + signUpRequest.getEmail());
+        
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+            System.out.println("[DEBUG] Registration failed: Email already in use: " + signUpRequest.getEmail());
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
         }
 
@@ -71,6 +75,7 @@ public class AuthController {
         try {
             roleEnum = Role.valueOf(signUpRequest.getRole().toUpperCase());
         } catch (IllegalArgumentException e) {
+            System.out.println("[DEBUG] Registration failed: Invalid role: " + signUpRequest.getRole());
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid role"));
         }
 
@@ -97,14 +102,16 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("Hospital not found")));
         }
 
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        System.out.println("[DEBUG] User saved successfully with ID: " + savedUser.getId());
 
         if (roleEnum == Role.DONOR) {
             Donor donor = Donor.builder()
-                .user(user)
+                .user(savedUser)
                 .availabilityStatus("AVAILABLE")
                 .build();
             donorRepository.save(donor);
+            System.out.println("[DEBUG] Donor entity created for user ID: " + savedUser.getId());
         }
 
         if (roleEnum == Role.HOSPITAL) {

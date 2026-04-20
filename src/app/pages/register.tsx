@@ -13,18 +13,6 @@ import axios from "axios";
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const publicApi = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 15000,
-    headers: { "Content-Type": "application/json" },
-  });
-
-  // Log the exact full URL being requested for debugging
-  publicApi.interceptors.request.use((config) => {
-    console.log("[DEBUG] Full Registration URL Requested:", config.baseURL + "/" + config.url);
-    return config;
-  });
-
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -58,7 +46,7 @@ export function RegisterPage() {
 
     setLoading(true);
     try {
-      await publicApi.post(`${API_BASE_URL}/auth/register`, {
+      await api.post("/auth/register", {
         name: formData.name,
         email: formData.email,
         password: formData.password,

@@ -58,7 +58,9 @@ public class WebSecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
             "http://localhost:5173", 
+            "http://localhost:5174",
             "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
             "http://192.168.*:*"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
@@ -82,6 +84,7 @@ public class WebSecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/hospitals/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/requests").permitAll()
                 .requestMatchers("/api/verify-donation/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/donor-eligibility/check").permitAll()
                 .requestMatchers("/ws-chat/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 // Everything else requires authentication
