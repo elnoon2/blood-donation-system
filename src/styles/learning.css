@@ -1,0 +1,60 @@
+/* 
+  LEARNING CSS - FOR FIRST YEAR STUDENTS 
+  This file demonstrates core CSS concepts like the Box Model, Flexbox, and Transitions.
+*/
+
+/* 1. THE BOX MODEL: Padding, Border, and Margin */
+.learning-card {
+    background-color: white;
+    border: 2px solid #e2e8f0;    /* Border */
+    border-radius: 12px;           /* Rounded corners */
+    padding: 20px;                 /* Space inside the card */
+    margin: 10px;                  /* Space outside the card */
+    transition: all 0.3s ease;     /* Animation for hover effects */
+    text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 2. HOVER EFFECTS: Changes state when mouse is over the element */
+.learning-card:hover {
+    border-color: #C1121F;         /* Changes border color to Primary Red */
+    transform: translateY(-5px);    /* Moves the card slightly up */
+    box-shadow: 0 10px 15px -3px rgba(193, 18, 31, 0.2);
+}
+
+/* 3. FLEXBOX: Aligning items in a row or column */
+.learning-flex-container {
+    display: flex;                 /* Enables Flexbox */
+    flex-wrap: wrap;               /* Allows items to move to the next line if no space */
+    justify-content: center;       /* Centers items horizontally */
+    gap: 20px;                     /* Space between flex items */
+    padding: 40px 0;
+}
+
+/* 4. TYPOGRAPHY: Styling text */
+.learning-title {
+    font-size: 1.5rem;             /* Size of text */
+    font-weight: 700;              /* Boldness */
+    color: #1a202c;                /* Dark color */
+    margin-bottom: 8px;
+}
+
+.learning-subtitle {
+    font-size: 0.9rem;
+    color: #C1121F;                /* Uses our theme's red */
+    text-transform: uppercase;     /* Makes text ALL CAPS */
+    letter-spacing: 1px;           /* Space between letters */
+}
+
+/* 5. CIRCULAR IMAGES: Using border-radius */
+.learning-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;            /* Makes a square image a perfect circle */
+    margin: 0 auto 15px;
+    background: #f7fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #f1f5f9;
+}
