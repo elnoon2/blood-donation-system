@@ -1,0 +1,10 @@
+# Force GitHub to detect HTML and CSS as primary languages
+*.html linguist-detectable=true
+*.css linguist-detectable=true
+
+# Mark TypeScript and Java as vendors to hide them or reduce their weight in stats
+# This makes HTML and CSS stand out more
+src/** linguist-vendored=true
+backend-spring/** linguist-vendored=true
+node_modules/** linguist-vendored=true
+dist/** linguist-vendored=true
