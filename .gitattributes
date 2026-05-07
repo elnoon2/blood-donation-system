@@ -2,9 +2,9 @@
 *.html linguist-detectable=true
 *.css linguist-detectable=true
 
-# Mark TypeScript and Java as vendors to hide them or reduce their weight in stats
-# This makes HTML and CSS stand out more
-src/** linguist-vendored=true
-backend-spring/** linguist-vendored=true
-node_modules/** linguist-vendored=true
-dist/** linguist-vendored=true
+# Mark other folders as generated/vendored so they don't dominate the stats
+src/** linguist-generated=true
+backend-spring/** linguist-generated=true
+node_modules/** linguist-generated=true
+dist/** linguist-generated=true
+.gemini/** linguist-generated=true
