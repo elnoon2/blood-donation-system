@@ -26,10 +26,12 @@ The platform uses advanced medical compatibility rules to find the best donors f
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React + Vite + TypeScript + Tailwind CSS + Lucide Icons.
-- **Backend**: Java Spring Boot + Spring Security + JWT.
-- **Database**: **Oracle Database (11g/12c/18c/21c XE)**.
-- **ORM**: Hibernate / Spring Data JPA.
+- **Frontend**: React 18 + Vite + TypeScript + Lucide Icons.
+- **Styling**: Tailwind CSS + Vanilla CSS (Modern Custom Themes).
+- **Animations**: Framer Motion.
+- **Backend**: Java Spring Boot 3 + Spring Security + JWT Authentication.
+- **Database**: **Oracle Database (18c/21c XE)**.
+- **ORM/JPA**: Hibernate 6 / Spring Data JPA.
 
 ---
 
