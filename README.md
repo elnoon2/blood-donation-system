@@ -1,6 +1,6 @@
 # Smart Blood Donation System 🩸
 
-Modern, secure, and intelligent platform localized for the Egyptian market to connect blood donors with patients and hospitals in real-time.
+Modern, secure, and intelligent platform localized for the Egyptian market to connect blood donors with patients and hospitals in real-time. This system has been recently upgraded to use **Oracle Database** for enterprise-grade data management.
 
 ---
 
@@ -28,46 +28,46 @@ The platform uses advanced medical compatibility rules to find the best donors f
 
 - **Frontend**: React + Vite + TypeScript + Tailwind CSS + Lucide Icons.
 - **Backend**: Java Spring Boot + Spring Security + JWT.
-- **Database**: MySQL.
-- **Styling**: Vanilla CSS (Modern themes).
+- **Database**: **Oracle Database (11g/12c/18c/21c XE)**.
+- **ORM**: Hibernate / Spring Data JPA.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Fast Run)
 
-### Prerequisites
-- Node.js (v18+)
-- Java JDK 17+
-- MySQL Server
+The easiest way to run the project is using the provided automation script:
 
-### 1. Backend Setup
-1. Navigate to `backend-spring`.
-2. Update `application.properties` with your MySQL credentials.
-3. Run the application:
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-4. Seed data is automatically loaded from `schema.sql` and `data.sql`.
-
-### 2. Frontend Setup
-1. Open a new terminal in the root directory.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
+1. Make sure you have **Node.js**, **Java 17+**, and **Oracle Database** installed.
+2. Ensure your Oracle listener is running on port `1521`.
+3. Double-click `run-project.bat` in the root directory.
+   - This will start the Backend on `http://localhost:8080`
+   - This will start the Frontend on `http://localhost:5173`
 
 ---
 
-## 📊 Database Schema
+## ⚙️ Manual Configuration
+
+### 1. Oracle Database Setup
+1. Create a user named `system` (or use existing) with password `nour12345` (or update `application.properties`).
+2. The schema is automatically initialized from `backend-spring/src/main/resources/schema.sql` on the first run.
+3. Seed data is loaded from `data.sql`.
+
+### 2. Backend Configuration
+Update `backend-spring/src/main/resources/application.properties`:
+```properties
+spring.datasource.url=jdbc:oracle:thin:@localhost:1521:xe
+spring.datasource.username=system
+spring.datasource.password=your_password
+```
+
+---
+
+## 📊 Database Schema (Oracle Optimized)
 
 The system uses a robust schema including:
-- `users`: Central table for authentication and profile data.
+- `users`: Central table for authentication (Oracle `IDENTITY` columns).
 - `donors`: Specific data for donation availability.
-- `requests`: Tracks blood needs and status.
+- `requests`: Tracks blood needs with status management and matched donor links.
 - `hospitals`: Partners and inventory tracking.
 - `notifications`: Real-time system alerts.
 
