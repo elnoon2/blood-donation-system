@@ -5,6 +5,7 @@
 DELETE FROM hospitals;
 INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Kasr Al-Ainy', 'Garden City', 'Cairo', '02-1234567', 'info@kasralainy.edu.eg');
 INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Ain Shams University Hospital', 'Abbassia', 'Cairo', '02-7654321', 'contact@asu.edu.eg');
+-- ... adding some more important ones ...
 INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Maadi Military Hospital', 'Maadi', 'Cairo', '02-1111111', 'maadi@mil.eg');
 
 -- 2. Users (Clear and Insert)

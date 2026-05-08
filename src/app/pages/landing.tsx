@@ -193,56 +193,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Educational Team Section for First Year Students */}
-      <section id="team" className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-t border-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Meet Our Development Team</h2>
-            <p className="text-gray-600">Built with passion by first-year students learning modern web technologies</p>
-          </div>
-
-          <div className="learning-flex-container">
-            {/* Team Member 1 */}
-            <div className="learning-card w-64">
-              <div className="learning-avatar">
-                <Users className="w-10 h-10 text-primary" />
-              </div>
-              <div className="learning-subtitle">Lead Developer</div>
-              <div className="learning-title">Team Member 1</div>
-              <p className="text-sm text-gray-500">HTML5 & CSS3 Enthusiast</p>
-            </div>
-
-            {/* Team Member 2 */}
-            <div className="learning-card w-64">
-              <div className="learning-avatar">
-                <Zap className="w-10 h-10 text-primary" />
-              </div>
-              <div className="learning-subtitle">UI Designer</div>
-              <div className="learning-title">Team Member 2</div>
-              <p className="text-sm text-gray-500">Flexbox & Grid Specialist</p>
-            </div>
-
-            {/* Team Member 3 */}
-            <div className="learning-card w-64">
-              <div className="learning-avatar">
-                <Heart className="w-10 h-10 text-primary" />
-              </div>
-              <div className="learning-subtitle">Frontend Dev</div>
-              <div className="learning-title">Team Member 3</div>
-              <p className="text-sm text-gray-500">Animations & Transitions</p>
-            </div>
-          </div>
-
-          <div className="mt-12 p-6 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-center">
-            <h4 className="text-primary font-bold mb-2">💡 Educational Note for the Team:</h4>
-            <p className="text-sm text-gray-600 max-w-2xl mx-auto">
-              Check out <code>src/styles/learning.css</code> to see how we used the <b>Box Model</b> (padding, margin, border), 
-              <b>Flexbox</b> (for alignment), and <b>Hover Transitions</b> to build this section!
-            </p>
-          </div>
-        </div>
-      </section>
-
       <Footer />
     </div>
   );

@@ -1,4 +1,6 @@
 -- Oracle SQL Schema for Smart Blood Donation System
+
+-- Drop tables in reverse dependency order (wrapped in PL/SQL to avoid errors if not exist)
 -- Drop tables if they exist (will ignore errors if they don't exist via Spring config)
 DROP TABLE HOME_COLLECTION_REQUESTS CASCADE CONSTRAINTS;
 DROP TABLE DONOR_HEALTH_ASSESSMENTS CASCADE CONSTRAINTS;
@@ -67,10 +69,8 @@ CREATE TABLE requests (
     request_date DATE NOT NULL,
     verification_code VARCHAR2(6),
     hospital_id NUMBER(19),
-    matched_donor_id NUMBER(19),
     CONSTRAINT fk_req_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_req_hosp FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE SET NULL,
-    CONSTRAINT fk_req_matched FOREIGN KEY (matched_donor_id) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT chk_req_donor_conf CHECK (donor_confirmed IN (0, 1)),
     CONSTRAINT chk_req_patient_conf CHECK (patient_confirmed IN (0, 1))
 );
