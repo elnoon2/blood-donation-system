@@ -8,6 +8,7 @@ DROP TABLE ADMIN_ACTIONS CASCADE CONSTRAINTS;
 DROP TABLE NOTIFICATIONS CASCADE CONSTRAINTS;
 DROP TABLE DONATIONS CASCADE CONSTRAINTS;
 DROP TABLE BLOOD_INVENTORY CASCADE CONSTRAINTS;
+DROP TABLE DONATION_FORMS CASCADE CONSTRAINTS;
 DROP TABLE HOSPITALS CASCADE CONSTRAINTS;
 DROP TABLE REQUESTS CASCADE CONSTRAINTS;
 DROP TABLE DONORS CASCADE CONSTRAINTS;
@@ -147,6 +148,8 @@ CREATE TABLE donation_verifications (
     donation_date DATE NOT NULL,
     bags_count NUMBER(10),
     notes CLOB,
+    id_card_image CLOB,
+    questionnaire_json CLOB,
     verified_by_doctor_id NUMBER(19),
     verified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -155,6 +158,24 @@ CREATE TABLE donation_verifications (
     CONSTRAINT fk_ver_donor FOREIGN KEY (donor_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_ver_patient FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_ver_doctor FOREIGN KEY (verified_by_doctor_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- 11. Donation Forms (Medical Verification Forms)
+CREATE TABLE donation_forms (
+    id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    request_id NUMBER(19),
+    patient_name VARCHAR2(255) NOT NULL,
+    patient_national_id VARCHAR2(20) NOT NULL,
+    blood_type VARCHAR2(10) NOT NULL,
+    patient_phone VARCHAR2(20) NOT NULL,
+    patient_age NUMBER(10),
+    patient_governorate VARCHAR2(100) NOT NULL,
+    patient_address CLOB,
+    notes CLOB,
+    doctor_name VARCHAR2(255) NOT NULL,
+    doctor_id_number VARCHAR2(100) NOT NULL,
+    doctor_id_image CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 11. Donor Health Assessments

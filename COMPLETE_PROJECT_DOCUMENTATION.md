@@ -67,8 +67,9 @@ The system utilizes 12 primary tables in Oracle, utilizing `IDENTITY` columns fo
 8.  **ADMIN_ACTIONS**: Audit logs for administrative changes.
 9.  **QR_VERIFICATION**: Secure tokens for verifying successful donations via QR codes.
 10. **DONATION_VERIFICATIONS**: Medical records signed by doctors.
-11. **HEALTH_ASSESSMENTS**: Digital forms for donor medical eligibility.
-12. **HOME_COLLECTION**: Requests for blood collection from home.
+11. **DONATION_FORMS**: Secure storage for digital medical verification forms including doctor signatures and IDs.
+12. **HEALTH_ASSESSMENTS**: Digital forms for donor medical eligibility.
+13. **HOME_COLLECTION**: Requests for blood collection from home.
 
 ---
 
