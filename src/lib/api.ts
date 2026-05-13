@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const runtimeHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
-const runtimeProtocol = typeof window !== "undefined" ? window.location.protocol : "http:";
-export const API_BASE_URL = `${runtimeProtocol}//${runtimeHost}:8080/api`;
+export const API_BASE_URL = typeof window !== "undefined" ? `${window.location.origin}/api` : "http://localhost:8080/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
