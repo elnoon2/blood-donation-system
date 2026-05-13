@@ -64,7 +64,9 @@
     "sonner": "2.0.3",
     "tailwind-merge": "3.2.0",
     "tw-animate-css": "1.3.8",
-    "vaul": "1.1.2"
+    "vaul": "1.1.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@stomp/stompjs": "^7.3.0",
@@ -80,8 +82,6 @@
     "@types/react-dom": "^18.0.0"
   },
   "peerDependencies": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
   },
   "peerDependenciesMeta": {
     "react": {
