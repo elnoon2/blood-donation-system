@@ -8,7 +8,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Build Backend
-FROM maven:3.8.5-openjdk-17-slim AS backend-build
+FROM maven:3.9-eclipse-temurin-17 AS backend-build
 WORKDIR /app
 # Copy the entire backend folder first
 COPY backend-spring /app/backend-spring
@@ -20,7 +20,7 @@ COPY --from=frontend-build /app/dist/ src/main/resources/static/
 RUN MAVEN_OPTS="-Xmx512m" mvn clean package -DskipTests
 
 # Stage 3: Final Runtime
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 # Find the generated jar and name it app.jar
 COPY --from=backend-build /app/backend-spring/target/*.jar app.jar
