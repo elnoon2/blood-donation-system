@@ -1,46 +1,35 @@
--- Oracle Data Seeding for Smart Blood Donation System
--- Using subqueries to find IDs to ensure correct relationships
+-- FINAL COMPREHENSIVE HOSPITAL SEED (All Governorates Included)
+-- [CAIRO]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Kasr Al-Ainy', 'Garden City', 'Cairo', '02-1234567', 'kasr@hosp.eg');
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Ain Shams University Hospital', 'Abbassia', 'Cairo', '02-7654321', 'ainshams@hosp.eg');
+-- [GIZA]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Giza Memorial Hospital', 'Dokki', 'Giza', '02-7777777', 'giza@hosp.eg');
+-- [ALEXANDRIA]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Alexandria University Hospital', 'Azarita', 'Alexandria', '03-1111111', 'alex@hosp.eg');
+-- [MATROUH]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Matrouh General Hospital', 'Marsa Matrouh', 'Matrouh', '046-1111111', 'matrouh@hosp.eg');
+-- [DAKAHLIA]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Mansoura University Hospital', 'Mansoura', 'Dakahlia', '050-1111111', 'mansoura@hosp.eg');
+-- [NORTH SINAI]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Arish General Hospital', 'Arish', 'North Sinai', '068-1111111', 'arish@hosp.eg');
+-- [SOUTH SINAI]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Sharm El Sheikh International', 'Sharm El Sheikh', 'South Sinai', '069-1111111', 'sharm@hosp.eg');
+-- [PORT SAID]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Port Said General Hospital', 'Port Said', 'Port Said', '066-1111111', 'portsaid@hosp.eg');
+-- [SUEZ]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Suez General Hospital', 'Suez', 'Suez', '062-1111111', 'suez@hosp.eg');
+-- [DAMIETTA]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Damietta University Hospital', 'New Damietta', 'Damietta', '057-1111111', 'damietta@hosp.eg');
+-- [KAFR EL SHEIKH]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Kafr El Sheikh University Hospital', 'Kafr El Sheikh', 'Kafr El Sheikh', '047-1111111', 'kafr@hosp.eg');
+-- [ASWAN]
+INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Aswan University Hospital', 'Aswan', 'Aswan', '097-1111111', 'aswan@hosp.eg');
 
--- 1. Hospitals (Clear and Insert)
-DELETE FROM hospitals;
-INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Kasr Al-Ainy', 'Garden City', 'Cairo', '02-1234567', 'info@kasralainy.edu.eg');
-INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Ain Shams University Hospital', 'Abbassia', 'Cairo', '02-7654321', 'contact@asu.edu.eg');
--- ... adding some more important ones ...
-INSERT INTO hospitals (name, location, governorate, phone, email) VALUES ('Maadi Military Hospital', 'Maadi', 'Cairo', '02-1111111', 'maadi@mil.eg');
+-- Users & Donors
+INSERT INTO users (name, email, password, role, governorate, phone, blood_type, is_approved) 
+VALUES ('Nour Admin', 'nourelkassyamin15@gmail.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.7uCyQ5a', 'ADMIN', 'Cairo', '01000000000', 'A+', 1);
 
--- 2. Users (Clear and Insert)
-DELETE FROM users;
-
--- Admin
-INSERT INTO users (name, email, password, blood_type, governorate, phone, medical_id, role, created_at)
-VALUES ('Admin User', 'nourelkassyamin15@gmail.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'O+', 'Cairo', '0123456789', 'ADM-001', 'ADMIN', SYSTIMESTAMP);
-
--- Donor
-INSERT INTO users (name, email, password, blood_type, governorate, phone, role, created_at)
-VALUES ('John Donor', 'donor@example.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'A+', 'Alexandria', '0111111111', 'DONOR', SYSTIMESTAMP);
-
--- Patient
-INSERT INTO users (name, email, password, blood_type, governorate, phone, role, created_at)
-VALUES ('Sarah Patient', 'patient@example.com', '$2a$10$SZfFY8okQNl1rUP/9/zpfOTqI.VoFBZr6jXfLJsJzi5f5k0.H4GnW', 'B-', 'Giza', '0122222222', 'PATIENT', SYSTIMESTAMP);
-
--- 3. Donors Table
-INSERT INTO donors (user_id, last_donation_date, availability_status)
-SELECT id, TO_DATE('2026-01-01', 'YYYY-MM-DD'), 'AVAILABLE' FROM users WHERE email = 'donor@example.com';
-
--- 4. Requests (Urgent Help Needed)
-INSERT INTO requests (user_id, blood_type, quantity_needed, governorate, phone, status, request_date, hospital_id)
-SELECT u.id, 'A+', 2, 'Cairo', '01012345678', 'PENDING', CURRENT_DATE, h.id 
-FROM users u, hospitals h 
-WHERE u.email = 'patient@example.com' AND h.email = 'info@kasralainy.edu.eg';
-
-INSERT INTO requests (user_id, blood_type, quantity_needed, governorate, phone, status, request_date, hospital_id)
-SELECT u.id, 'O-', 1, 'Giza', '01123456789', 'PENDING', CURRENT_DATE, h.id 
-FROM users u, hospitals h 
-WHERE u.email = 'patient@example.com' AND h.email = 'info@kasralainy.edu.eg';
-
-INSERT INTO requests (user_id, blood_type, quantity_needed, governorate, phone, status, request_date, hospital_id)
-SELECT u.id, 'B+', 3, 'Alexandria', '01234567890', 'PENDING', CURRENT_DATE, h.id 
-FROM users u, hospitals h 
-WHERE u.email = 'patient@example.com' AND h.email = 'contact@asu.edu.eg';
+INSERT INTO users (name, email, password, role, governorate, phone, blood_type, is_approved) VALUES ('Ahmed Cairo', 'ahmed@mail.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.7uCyQ5a', 'DONOR', 'Cairo', '0111', 'O+', 1);
+INSERT INTO donors (user_id, availability_status) SELECT id, 'AVAILABLE' FROM users WHERE role = 'DONOR';
 
 COMMIT;

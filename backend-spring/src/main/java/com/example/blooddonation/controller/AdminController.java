@@ -51,18 +51,30 @@ public class AdminController {
     }
 
     @GetMapping("/donors")
+    @Transactional(readOnly = true)
     public List<Donor> getAllDonors(
             @RequestParam(required = false) String governorate,
             @RequestParam(required = false) String bloodType) {
         
+        List<Donor> donors;
         if (governorate != null && !"all".equals(governorate) && bloodType != null && !"all".equals(bloodType)) {
-            return donorRepository.findByUserBloodTypeAndUserGovernorateIgnoreCase(bloodType, governorate);
+            donors = donorRepository.findByUserBloodTypeAndUserGovernorateIgnoreCase(bloodType, governorate);
         } else if (governorate != null && !"all".equals(governorate)) {
-            return donorRepository.findByUserGovernorateIgnoreCase(governorate);
+            donors = donorRepository.findByUserGovernorateIgnoreCase(governorate);
         } else if (bloodType != null && !"all".equals(bloodType)) {
-            return donorRepository.findByUserBloodType(bloodType);
+            donors = donorRepository.findByUserBloodType(bloodType);
+        } else {
+            donors = donorRepository.findAll();
         }
-        return donorRepository.findAll();
+        
+        // Touch the user object to force loading (fix LazyInitializationException)
+        donors.forEach(d -> {
+            if (d.getUser() != null) {
+                d.getUser().getName();
+            }
+        });
+        
+        return donors;
     }
 
     @GetMapping("/patients")

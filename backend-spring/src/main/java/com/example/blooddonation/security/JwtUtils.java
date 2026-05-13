@@ -30,6 +30,15 @@ public class JwtUtils {
                 .signWith(key(), SignatureAlgorithm.HS512)
                 .compact();
     }
+
+    public String generateTokenFromUsername(String username) {
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(key(), SignatureAlgorithm.HS512)
+                .compact();
+    }
     
     private Key key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));

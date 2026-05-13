@@ -52,7 +52,7 @@ public class DonationForm {
     private String doctorIdNumber;
 
     @Lob
-    @Column(name = "doctor_id_image", columnDefinition = "LONGTEXT")
+    @Column(name = "doctor_id_image")
     private String doctorIdImage;
 
     @Column(name = "created_at")

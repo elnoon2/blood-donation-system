@@ -44,15 +44,15 @@ public class DonationVerification {
     @Column(name = "bags_count")
     private Integer bagsCount;
 
-    @Column(columnDefinition = "TEXT")
+    @Column
     private String notes;
 
     @Lob
-    @Column(name = "id_card_image", columnDefinition = "LONGTEXT")
+    @Column(name = "id_card_image")
     private String idCardImage;
 
     @Lob
-    @Column(name = "questionnaire_json", columnDefinition = "LONGTEXT")
+    @Column(name = "questionnaire_json")
     private String questionnaireJson;
 
     @ManyToOne(fetch = FetchType.LAZY)

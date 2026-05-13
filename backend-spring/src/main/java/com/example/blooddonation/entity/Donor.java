@@ -3,6 +3,7 @@ package com.example.blooddonation.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "donors")
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Donor {
 
     @Id

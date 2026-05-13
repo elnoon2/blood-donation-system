@@ -1,17 +1,18 @@
--- Oracle SQL Schema for Smart Blood Donation System
--- Drop tables if they exist (will ignore errors if they don't exist via Spring config)
+-- Final Oracle SQL Schema for Smart Blood Donation System (All 13 Tables)
+-- Properly ordered drops to handle constraints
 DROP TABLE HOME_COLLECTION_REQUESTS CASCADE CONSTRAINTS;
 DROP TABLE DONOR_HEALTH_ASSESSMENTS CASCADE CONSTRAINTS;
+DROP TABLE DONATION_FORMS CASCADE CONSTRAINTS;
 DROP TABLE DONATION_VERIFICATIONS CASCADE CONSTRAINTS;
 DROP TABLE QR_VERIFICATION_TOKENS CASCADE CONSTRAINTS;
 DROP TABLE ADMIN_ACTIONS CASCADE CONSTRAINTS;
 DROP TABLE NOTIFICATIONS CASCADE CONSTRAINTS;
 DROP TABLE DONATIONS CASCADE CONSTRAINTS;
 DROP TABLE BLOOD_INVENTORY CASCADE CONSTRAINTS;
-DROP TABLE HOSPITALS CASCADE CONSTRAINTS;
 DROP TABLE REQUESTS CASCADE CONSTRAINTS;
 DROP TABLE DONORS CASCADE CONSTRAINTS;
 DROP TABLE USERS CASCADE CONSTRAINTS;
+DROP TABLE HOSPITALS CASCADE CONSTRAINTS;
 
 -- 1. Hospitals
 CREATE TABLE hospitals (
@@ -34,7 +35,7 @@ CREATE TABLE users (
     phone VARCHAR2(50),
     medical_id VARCHAR2(50) UNIQUE,
     role VARCHAR2(50) NOT NULL,
-    is_approved NUMBER(1) DEFAULT 1 NOT NULL, -- 1 for TRUE, 0 for FALSE
+    is_approved NUMBER(1) DEFAULT 1 NOT NULL,
     hospital_id NUMBER(19),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user_hospital FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE SET NULL,
@@ -147,6 +148,8 @@ CREATE TABLE donation_verifications (
     donation_date DATE NOT NULL,
     bags_count NUMBER(10),
     notes CLOB,
+    id_card_image CLOB,
+    questionnaire_json CLOB,
     verified_by_doctor_id NUMBER(19),
     verified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -157,7 +160,25 @@ CREATE TABLE donation_verifications (
     CONSTRAINT fk_ver_doctor FOREIGN KEY (verified_by_doctor_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- 11. Donor Health Assessments
+-- 11. Donation Forms
+CREATE TABLE donation_forms (
+    id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    request_id NUMBER(19),
+    patient_name VARCHAR2(255) NOT NULL,
+    patient_national_id VARCHAR2(20) NOT NULL,
+    blood_type VARCHAR2(10) NOT NULL,
+    patient_phone VARCHAR2(20) NOT NULL,
+    patient_age NUMBER(10),
+    patient_governorate VARCHAR2(100) NOT NULL,
+    patient_address CLOB,
+    notes CLOB,
+    doctor_name VARCHAR2(255) NOT NULL,
+    doctor_id_number VARCHAR2(100) NOT NULL,
+    doctor_id_image CLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Donor Health Assessments
 CREATE TABLE donor_health_assessments (
     id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     donor_id NUMBER(19),
@@ -207,7 +228,7 @@ CREATE TABLE donor_health_assessments (
     CONSTRAINT fk_health_donor FOREIGN KEY (donor_id) REFERENCES donors(id) ON DELETE SET NULL
 );
 
--- 12. Home Collection Requests
+-- 13. Home Collection Requests
 CREATE TABLE home_collection_requests (
     id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     donor_id NUMBER(19) NOT NULL,

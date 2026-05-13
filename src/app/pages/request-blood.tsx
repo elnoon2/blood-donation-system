@@ -83,12 +83,9 @@ export function RequestBloodPage() {
                 setAvailableHospitals(response.data);
                 setFormData(prev => ({ ...prev, hospitalId: response.data[0].id }));
             } else {
-                console.warn("No hospitals found for this governorate, fetching all instead.");
-                const allResponse = await api.get("/hospitals");
-                setAvailableHospitals(allResponse.data);
-                if (allResponse.data.length > 0) {
-                  setFormData(prev => ({ ...prev, hospitalId: allResponse.data[0].id }));
-                }
+                console.warn("No hospitals found for this governorate.");
+                setAvailableHospitals([]);
+                setFormData(prev => ({ ...prev, hospitalId: "" }));
             }
         } catch (error) {
             console.error("Failed to fetch hospitals", error);
