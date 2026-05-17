@@ -45,6 +45,9 @@ public class QRVerificationController {
 
     @GetMapping("/token/{requestId}")
     public ResponseEntity<?> getToken(@PathVariable Long requestId, org.springframework.security.core.Authentication auth) {
+        if (auth == null || !(auth.getPrincipal() instanceof com.example.blooddonation.security.UserDetailsImpl)) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized access."));
+        }
         com.example.blooddonation.security.UserDetailsImpl principal = (com.example.blooddonation.security.UserDetailsImpl) auth.getPrincipal();
         User actingUser = userRepository.findById(principal.getId()).orElse(null);
         
@@ -89,8 +92,6 @@ public class QRVerificationController {
             @RequestParam String token) {
 
         System.out.println("Validating Token: [" + token + "] for Request: " + request_id + ", Donor: " + donor_id + ", Patient: " + patient_id);
-
-        System.out.println("Validating Token: [" + token + "] for Request: " + request_id);
 
         Optional<QRVerificationToken> tokenOpt = tokenRepository.findAll().stream()
                 .filter(t -> t.getToken().equals(token) && t.getRequest().getId().equals(request_id))

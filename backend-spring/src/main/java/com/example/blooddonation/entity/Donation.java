@@ -1,6 +1,7 @@
 package com.example.blooddonation.entity;
 
 import com.example.blooddonation.enums.DonationStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Donation {
 
     @Id

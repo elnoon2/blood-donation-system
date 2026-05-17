@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import axios from "axios";
+import api from "../../lib/api";
 import { 
   ClipboardCheck, 
   MapPin, 
@@ -24,7 +24,6 @@ import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { toast } from "sonner";
 
-const API_BASE_URL = "http://localhost:8080/api";
 
 const VerifyDonation = () => {
     const [searchParams] = useSearchParams();
@@ -70,7 +69,7 @@ const VerifyDonation = () => {
             }
 
             try {
-                const response = await axios.get(`${API_BASE_URL}/verify-donation/validate`, {
+                const response = await api.get(`/verify-donation/validate`, {
                     params: { request_id: requestId, donor_id: donorId, patient_id: patientId, token }
                 });
                 setDetails(response.data);
@@ -108,7 +107,7 @@ const VerifyDonation = () => {
         setVerifying(true);
 
         try {
-            await axios.post(`${API_BASE_URL}/verify-donation/submit`, {
+            await api.post(`/verify-donation/submit`, {
                 ...formContent,
                 questionnaireJson: JSON.stringify(formContent.answers),
                 requestId: parseInt(requestId!),

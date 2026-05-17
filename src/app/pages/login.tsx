@@ -46,7 +46,7 @@ export function LoginPage() {
       if (fullUserData.role === "ROLE_ADMIN" || fullUserData.role === "ADMIN") {
         navigate("/admin");
       } else {
-        navigate("/dashboard");
+        navigate("/eligibility-form");
       }
     } catch (error: any) {
       const message = !error.response

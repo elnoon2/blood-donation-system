@@ -16,15 +16,18 @@ echo =======================================================
 echo    WELCOME TO SMART BLOOD DONATION SYSTEM
 echo =======================================================
 echo.
-echo [1/2] Starting Backend (Java Spring Boot) in a new window...
+echo [1/3] Starting Backend (Java Spring Boot) in a new window...
 start "Backend - Spring Boot" cmd /k "cd backend-spring && mvn spring-boot:run"
 
-echo [2/2] Starting Frontend (React + Vite) in a new window...
+echo [2/3] Starting WhatsApp Microservice...
+start "WhatsApp Service" cmd /k "cd whatsapp-service && npm start"
+
+echo [3/3] Starting Frontend (React + Vite) in a new window...
 start "Frontend - React/Vite" cmd /k "set VITE_API_BASE_URL=%API_FOR_FRONTEND% && npm run dev -- --host 0.0.0.0 --port 5173"
 
 echo.
 echo -------------------------------------------------------
-echo SUCCESS: Both Backend and Frontend are starting up!
+echo SUCCESS: Backend, WhatsApp, and Frontend are starting up!
 echo.
 echo Backend (Laptop): %BACKEND_LOCAL%
 echo Backend (Phone) : %BACKEND_PHONE%

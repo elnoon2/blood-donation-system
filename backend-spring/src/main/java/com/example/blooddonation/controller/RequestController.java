@@ -54,6 +54,7 @@ public class RequestController {
     private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @PostMapping
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> createRequest(@Valid @RequestBody BloodRequestDTO dto, Authentication auth) {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
         User user = userRepository.findById(userDetails.getId()).get();
@@ -74,7 +75,87 @@ public class RequestController {
                 .build();
 
         requestRepository.save(request);
-        return ResponseEntity.ok(new MessageResponse("Request created successfully. Awaiting hospital confirmation."));
+
+        // Find matching donors and send notifications
+        List<String> compatibleTypes = com.example.blooddonation.util.BloodCompatibilityUtil.getCompatibleDonorTypes(dto.getBloodType());
+        List<Donor> matchingDonors = donorRepository.findByUserBloodTypeInAndUserGovernorateIgnoreCase(compatibleTypes, dto.getGovernorate());
+
+        int notifiedCount = 0;
+        boolean whatsappSent = false;
+        for (Donor donor : matchingDonors) {
+            // Only notify if donor is available
+            if (!"AVAILABLE".equals(donor.getAvailabilityStatus())) continue;
+
+            // Check if donor is eligible by 3-month rule
+            boolean isEligible = true;
+            if (donor.getLastDonationDate() != null) {
+                LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
+                if (donor.getLastDonationDate().isAfter(threeMonthsAgo)) {
+                    isEligible = false;
+                }
+            }
+
+            if (isEligible) {
+                Notification notification = Notification.builder()
+                        .user(donor.getUser())
+                        .message("Urgent: A patient in " + dto.getGovernorate() + " needs " + dto.getBloodType() + " blood.")
+                        .type(NotificationType.URGENT)
+                        .sentAt(java.time.LocalDateTime.now())
+                        .build();
+                notificationRepository.save(notification);
+                
+                try {
+                    messagingTemplate.convertAndSend("/topic/notifications/" + donor.getUser().getId(), notification);
+                } catch (Exception e) {
+                    System.out.println("WebSocket message failed: " + e.getMessage());
+                }
+                
+                // Trigger WhatsApp Notification - LIMIT TO ONLY ONE MESSAGE MAX
+                if (!whatsappSent) {
+                    sendWhatsAppNotification(donor.getUser().getPhone(), dto.getBloodType(), dto.getGovernorate());
+                    whatsappSent = true;
+                }
+
+                notifiedCount++;
+            }
+        }
+
+        return ResponseEntity.ok(new MessageResponse("Request created successfully. " + notifiedCount + " matching donors notified."));
+    }
+
+    private void sendWhatsAppNotification(String phone, String bloodType, String location) {
+        if (phone == null || phone.isBlank()) {
+            System.out.println("[WhatsApp] Skipping: Phone number is null or empty");
+            return;
+        }
+        
+        try {
+            String message = "*Emergency Blood Request*\n" +
+                             "Blood Type: *" + bloodType + "*\n" +
+                             "Location: *" + location + "*\n\n" +
+                             "A patient urgently needs blood donation. Please log in to the Smart Blood Donation System to help.";
+                             
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("phone", phone);
+            body.put("message", message);
+            
+            System.out.println("[WhatsApp] Attempting to send message to: " + phone);
+            
+            // Run asynchronously so it doesn't block the main thread
+            new Thread(() -> {
+                try {
+                    org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity("http://localhost:3001/api/whatsapp/send", body, String.class);
+                    System.out.println("[WhatsApp] Success! Response: " + response.getBody());
+                } catch (Exception e) {
+                    System.err.println("[WhatsApp Error] Failed for " + phone + ": " + e.getMessage());
+                    if (e.getCause() != null) System.err.println("Cause: " + e.getCause().getMessage());
+                }
+            }).start();
+            
+        } catch (Exception e) {
+            System.err.println("Error constructing WhatsApp notification: " + e.getMessage());
+        }
     }
 
     @GetMapping

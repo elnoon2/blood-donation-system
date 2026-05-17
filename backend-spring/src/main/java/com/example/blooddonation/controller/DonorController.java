@@ -24,6 +24,9 @@ public class DonorController {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    com.example.blooddonation.repository.DonationRepository donationRepository;
+
     @GetMapping
     public List<Donor> getAllDonors() {
         return donorRepository.findAll();
@@ -53,8 +56,54 @@ public class DonorController {
         return ResponseEntity.ok(donor);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @jakarta.transaction.Transactional
+    public ResponseEntity<Donor> getMyDonorProfile(Authentication auth) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        User user = userRepository.findById(userDetails.getId()).get();
+        Donor donor = donorRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Donor profile not found"));
+        return ResponseEntity.ok(donor);
+    }
+
+    @GetMapping("/stats")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<com.example.blooddonation.dto.DonorStatsDTO> getMyStats(Authentication auth) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        Long userId = userDetails.getId();
+        
+        long totalDonations = donationRepository.countByUserId(userId);
+        long livesSaved = totalDonations * 3;
+        
+        Donor donor = donorRepository.findByUserId(userId).orElse(null);
+        String nextEligibleDate = "Available Now";
+        int daysUntilEligible = 0;
+        
+        if (donor != null && donor.getLastDonationDate() != null) {
+            java.time.LocalDate nextDate = donor.getLastDonationDate().plusMonths(3);
+            if (nextDate.isAfter(java.time.LocalDate.now())) {
+                nextEligibleDate = nextDate.toString();
+                daysUntilEligible = (int) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), nextDate);
+            }
+        }
+        
+        int impactScore = (int) (totalDonations * 100);
+        
+        com.example.blooddonation.dto.DonorStatsDTO stats = com.example.blooddonation.dto.DonorStatsDTO.builder()
+                .totalDonations(totalDonations)
+                .livesSaved(livesSaved)
+                .nextEligibleDate(nextEligibleDate)
+                .daysUntilEligible(daysUntilEligible)
+                .impactScore(impactScore)
+                .build();
+                
+        return ResponseEntity.ok(stats);
+    }
+
     @PutMapping("/me")
-    @PreAuthorize("hasRole('DONOR')")
+    @PreAuthorize("isAuthenticated()")
+    @jakarta.transaction.Transactional
     public ResponseEntity<Donor> updateMyDonorProfile(@RequestBody DonorDTO dto, Authentication auth) {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
         User user = userRepository.findById(userDetails.getId()).get();
@@ -64,8 +113,15 @@ public class DonorController {
         if(dto.getPhone() != null) user.setPhone(dto.getPhone());
         userRepository.save(user);
 
+        // Auto-create donor record if it doesn't exist
         Donor donor = donorRepository.findByUser(user)
-                .orElseThrow(() -> new ResourceNotFoundException("Donor profile not found"));
+                .orElseGet(() -> {
+                    Donor newDonor = Donor.builder()
+                            .user(user)
+                            .availabilityStatus("AVAILABLE")
+                            .build();
+                    return donorRepository.save(newDonor);
+                });
 
         if(dto.getAvailabilityStatus() != null) donor.setAvailabilityStatus(dto.getAvailabilityStatus());
         if(dto.getLastDonationDate() != null && !dto.getLastDonationDate().isEmpty()) {

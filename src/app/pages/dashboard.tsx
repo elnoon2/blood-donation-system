@@ -23,6 +23,7 @@ export function DashboardPage() {
   const isPatient = normalizedRole === "PATIENT" || isAdmin;
   const isDonor = normalizedRole === "DONOR" || isAdmin;
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,11 +33,22 @@ export function DashboardPage() {
         setNotifications(response.data);
       } catch (error) {
         console.error("Failed to fetch notifications", error);
+      }
+    };
+    
+    const fetchStats = async () => {
+      try {
+        const response = await api.get("/donors/stats");
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch stats", error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchNotifications();
+    fetchStats();
   }, []);
 
   const [requests, setRequests] = useState<any[]>([]);
@@ -104,7 +116,9 @@ export function DashboardPage() {
       try {
         const params = user?.bloodType ? `?bloodType=${encodeURIComponent(user.bloodType)}` : "";
         const response = await api.get(`/donors/search${params}`);
-        setDonors(response.data || []);
+        // Filter strictly by the user's exact blood type
+        const exactMatches = (response.data || []).filter((d: any) => d?.user?.bloodType === user?.bloodType);
+        setDonors(exactMatches);
       } catch (error) {
         console.error("Failed to fetch donors", error);
       } finally {
@@ -158,11 +172,12 @@ export function DashboardPage() {
     return score;
   };
 
-  const sortedRequests = [...requests].sort((a, b) => {
-    const byPriority = getRequestPriorityScore(b) - getRequestPriorityScore(a);
-    if (byPriority !== 0) return byPriority;
-    return (b.id || 0) - (a.id || 0);
-  });
+  const sortedRequests = [...requests]
+    .sort((a, b) => {
+      const byPriority = getRequestPriorityScore(b) - getRequestPriorityScore(a);
+      if (byPriority !== 0) return byPriority;
+      return (b.id || 0) - (a.id || 0);
+    });
 
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -302,10 +317,10 @@ export function DashboardPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {[
-                { title: "Total Donations", value: "12", icon: Droplet, desc: "3 unit(s) this year", color: "red" },
-                { title: "Lives Saved", value: "36", icon: Heart, desc: "Estimated impact", color: "pink" },
-                { title: "Next Eligible", value: "45 Days", icon: Calendar, desc: "June 24, 2026", color: "indigo" },
-                { title: "Impact Score", value: "850", icon: TrendingUp, desc: "Top 10% donors", color: "amber" }
+                { title: "Total Donations", value: stats?.totalDonations || "0", icon: Droplet, desc: "Total verified donations", color: "red" },
+                { title: "Lives Saved", value: stats?.livesSaved || "0", icon: Heart, desc: "Estimated impact", color: "pink" },
+                { title: "Next Eligible", value: stats?.daysUntilEligible > 0 ? `${stats.daysUntilEligible} Days` : "Ready", icon: Calendar, desc: stats?.nextEligibleDate || "Available Now", color: "indigo" },
+                { title: "Impact Score", value: stats?.impactScore || "0", icon: TrendingUp, desc: "Based on donation history", color: "amber" }
             ].map((s, idx) => (
                 <Card key={idx} className="p-6 border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 rounded-2xl group overflow-hidden">
                     <div className="relative z-10">
@@ -348,22 +363,14 @@ export function DashboardPage() {
                   </>
                 )}
                 {(isDonor || isAdmin) && (
-                  <>
-                    <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-red-50 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all">
-                      <div className="p-3 bg-red-100 rounded-xl text-red-600 group-hover:scale-110 transition-transform">
-                        <Heart className="w-8 h-8" />
+                  <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-green-50 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all" asChild>
+                    <Link to="/eligibility-form">
+                      <div className="p-3 bg-green-100 rounded-xl text-green-600 group-hover:scale-110 transition-transform">
+                        <Check className="w-8 h-8" />
                       </div>
-                      <span>Browse Patient Requests</span>
-                    </Button>
-                    <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-green-50 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all" asChild>
-                      <Link to="/eligibility-form">
-                        <div className="p-3 bg-green-100 rounded-xl text-green-600 group-hover:scale-110 transition-transform">
-                          <Check className="w-8 h-8" />
-                        </div>
-                        <span>Can I Donate?</span>
-                      </Link>
-                    </Button>
-                  </>
+                      <span>Can I Donate?</span>
+                    </Link>
+                  </Button>
                 )}
                 {isAdmin && (
                   <Button className="h-32 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:bg-primary/5 text-gray-900 text-lg font-bold flex-col gap-3 group transition-all" asChild>
@@ -401,182 +408,180 @@ export function DashboardPage() {
 
               <div className="space-y-12">
                 {/* 1. Donors Section */}
-                <section>
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 border-l-4 border-primary pl-4">Recommended Donors</h3>
-                    <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary/5" asChild>
-                      <Link to="/search-donors">VIEW ALL</Link>
-                    </Button>
-                  </div>
-                  
-                  {donorsLoading ? (
-                    <div className="py-12 text-center text-gray-400">
-                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                      <p className="font-medium">Finding matching donors...</p>
+                {(isPatient || isAdmin) && (
+                  <section>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 border-l-4 border-primary pl-4">Recommended Donors</h3>
+                      <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary/5" asChild>
+                        <Link to="/search-donors">VIEW ALL</Link>
+                      </Button>
                     </div>
-                  ) : sortedDonors.length > 0 ? (
-                    <div className="grid gap-4">
-                      {sortedDonors.slice(0, 5).map((donor: any) => {
-                        const cleanPhone = (donor?.user?.phone || "").replace(/\D/g, "");
-                        const donorMapLink = getDonorMapLink(donor);
-                        return (
-                          <div key={donor.user.id} className="p-4 border border-gray-100 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-primary/20 transition-all bg-gray-50/30 group">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
-                                {donor?.user?.bloodType || "--"}
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-gray-900 leading-tight">{donor?.user?.name}</h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-[10px] uppercase font-black px-2 py-0.5">{donor?.availabilityStatus || "AVAILABLE"}</Badge>
-                                  <span className="text-[11px] text-gray-400 font-bold flex items-center gap-1"><MapPin className="w-3 h-3" /> {donor?.user?.governorate}</span>
+                    
+                    {donorsLoading ? (
+                      <div className="py-12 text-center text-gray-400">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="font-medium">Finding matching donors...</p>
+                      </div>
+                    ) : sortedDonors.length > 0 ? (
+                      <div className="grid gap-4">
+                        {sortedDonors.slice(0, 5).map((donor: any) => {
+                          const cleanPhone = (donor?.user?.phone || "").replace(/\D/g, "");
+                          const donorMapLink = getDonorMapLink(donor);
+                          return (
+                            <div key={donor.user.id} className="p-4 border border-gray-100 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-primary/20 transition-all bg-gray-50/30 group">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
+                                  {donor?.user?.bloodType || "--"}
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-gray-900 leading-tight">{donor?.user?.name}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-[10px] uppercase font-black px-2 py-0.5">{donor?.availabilityStatus || "AVAILABLE"}</Badge>
+                                    <span className="text-[11px] text-gray-400 font-bold flex items-center gap-1"><MapPin className="w-3 h-3" /> {donor?.user?.governorate}</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" className="rounded-lg h-9 font-bold border-gray-200" asChild>
-                                <a href={cleanPhone ? `tel:${cleanPhone}` : "#"}><Phone className="w-3.5 h-3.5 mr-1.5" /> Call</a>
-                              </Button>
-                              <Button variant="outline" size="sm" className="rounded-lg h-9 font-bold border-green-200 text-green-600 hover:bg-green-50" onClick={() => openChat({ id: donor.user.id, name: donor.user.name })}>
-                                Chat
-                              </Button>
-                              {donorMapLink && (
-                                <Button variant="ghost" size="sm" className="rounded-lg h-9 w-9 p-0 text-primary hover:bg-primary/5" asChild>
-                                  <a href={donorMapLink} target="_blank" rel="noreferrer"><MapPin className="w-4 h-4" /></a>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" className="rounded-lg h-9 font-bold border-gray-200" asChild>
+                                  <a href={cleanPhone ? `tel:${cleanPhone}` : "#"}><Phone className="w-3.5 h-3.5 mr-1.5" /> Call</a>
                                 </Button>
-                              )}
+                                {donorMapLink && (
+                                  <Button variant="ghost" size="sm" className="rounded-lg h-9 w-9 p-0 text-primary hover:bg-primary/5" asChild>
+                                    <a href={donorMapLink} target="_blank" rel="noreferrer"><MapPin className="w-4 h-4" /></a>
+                                  </Button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="py-10 border-2 border-dashed border-gray-100 rounded-3xl text-center bg-gray-50/50">
-                      <Droplet className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                      <p className="text-gray-400 text-sm font-medium">No donors available at the moment.</p>
-                    </div>
-                  )}
-                </section>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-10 border-2 border-dashed border-gray-100 rounded-3xl text-center bg-gray-50/50">
+                        <Droplet className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                        <p className="text-gray-400 text-sm font-medium">No donors available at the moment.</p>
+                      </div>
+                    )}
+                  </section>
+                )}
 
                 {/* 2. Urgent Requests Section */}
-                <section className="pt-8 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 border-l-4 border-red-500 pl-4">Urgent Help Needed</h3>
-                  </div>
-
-                  {requestsLoading ? (
-                    <div className="py-12 text-center text-gray-400">
-                      <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                      <p className="font-medium">Loading patient requests...</p>
+                {(isDonor || isAdmin) && (
+                  <section className={(isPatient || isAdmin) ? "pt-8 border-t border-gray-100" : ""}>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 border-l-4 border-red-500 pl-4">Urgent Help Needed</h3>
                     </div>
-                  ) : sortedRequests.length > 0 ? (
-                    <div className="grid gap-4">
-                      {sortedRequests.slice(0, 8).map((request: any) => {
-                        const effectiveStatus = getEffectiveRequestStatus(request);
-                        const nextStatus = getNextStatus(effectiveStatus);
-                        const isCompleted = effectiveStatus === "COMPLETED";
-                        const requestMapLink = getRequestMapLink(request);
-                        
-                        return (
-                          <div key={request.id} className="p-5 border border-red-50 rounded-2xl bg-red-50/20 hover:border-red-200 transition-all group/request">
-                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-14 h-14 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-red-200 uppercase group-hover/request:scale-105 transition-transform">
-                                    {request.bloodType}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-black text-gray-900 text-lg">Requester: {request.userName}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                       <Badge className={`${getStatusBadgeClass(effectiveStatus)} border-none text-[10px] font-black uppercase px-2 py-0.5 flex items-center gap-1`}>
-                                         {(effectiveStatus === "PENDING" || effectiveStatus === "UNDER_REVIEW") && <Clock className="w-3 h-3" />}
-                                         {effectiveStatus === "HOSPITAL_CONFIRMED" && <Check className="w-3 h-3" />}
-                                         {effectiveStatus === "MATCHED_DONOR" && <PersonStanding className="w-3 h-3" />}
-                                         {effectiveStatus === "DONATION_COMPLETED" && <Droplets className="w-3 h-3" />}
-                                         {effectiveStatus.replace(/_/g, ' ')}
-                                       </Badge>
-                                       <span className="text-[11px] text-gray-500 font-bold tracking-tight bg-white/50 px-2 py-0.5 rounded-lg border border-red-100/50">{request.governorate} • {request.requestDate}</span>
+
+                    {requestsLoading ? (
+                      <div className="py-12 text-center text-gray-400">
+                        <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="font-medium">Loading patient requests...</p>
+                      </div>
+                    ) : sortedRequests.length > 0 ? (
+                      <div className="grid gap-4 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
+                        {sortedRequests.map((request: any) => {
+                          const effectiveStatus = getEffectiveRequestStatus(request);
+                          const nextStatus = getNextStatus(effectiveStatus);
+                          const isCompleted = effectiveStatus === "COMPLETED";
+                          const requestMapLink = getRequestMapLink(request);
+                          
+                          return (
+                            <div key={request.id} className="p-5 border border-red-50 rounded-2xl bg-red-50/20 hover:border-red-200 transition-all group/request">
+                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-red-200 uppercase group-hover/request:scale-105 transition-transform">
+                                      {request.bloodType}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-black text-gray-900 text-lg">Requester: {request.userName}</h4>
+                                      <div className="flex items-center gap-2 mt-1">
+                                         <Badge className={`${getStatusBadgeClass(effectiveStatus)} border-none text-[10px] font-black uppercase px-2 py-0.5 flex items-center gap-1`}>
+                                           {(effectiveStatus === "PENDING" || effectiveStatus === "UNDER_REVIEW") && <Clock className="w-3 h-3" />}
+                                           {effectiveStatus === "HOSPITAL_CONFIRMED" && <Check className="w-3 h-3" />}
+                                           {effectiveStatus === "MATCHED_DONOR" && <PersonStanding className="w-3 h-3" />}
+                                           {effectiveStatus === "DONATION_COMPLETED" && <Droplets className="w-3 h-3" />}
+                                           {effectiveStatus.replace(/_/g, ' ')}
+                                         </Badge>
+                                         <span className="text-[11px] text-gray-500 font-bold tracking-tight bg-white/50 px-2 py-0.5 rounded-lg border border-red-100/50">{request.governorate} • {request.requestDate}</span>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="flex gap-2">
-                                   <Button className="rounded-xl h-10 font-bold px-5 shadow-sm shadow-primary/20" onClick={() => openChat({ id: request.userId, name: request.userName })}>
-                                     Chat
-                                   </Button>
-                                   <Button variant="secondary" className="rounded-xl h-10 font-bold bg-white border border-gray-200 shadow-sm transition-colors hover:bg-gray-50" onClick={() => handleHelpNow(request)}>
-                                     Help Info
-                                   </Button>
-                                   {isAdmin && (
-                                      <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl text-red-500 hover:bg-red-50" onClick={() => handleDeleteRequest(request.id)}>
-                                        <Trash2 className="w-5 h-5" />
-                                      </Button>
-                                    )}
-                                   {requestMapLink && (
-                                     <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl hover:bg-red-50 group/map" asChild>
-                                       <a href={requestMapLink} target="_blank" rel="noreferrer"><LocateFixed className="w-5 h-5 text-red-500 group-hover/map:scale-110 transition-transform" /></a>
+                                  <div className="flex gap-2">
+                                     <Button variant="secondary" className="rounded-xl h-10 font-bold bg-white border border-gray-200 shadow-sm transition-colors hover:bg-gray-50" onClick={() => handleHelpNow(request)}>
+                                       Help Info
                                      </Button>
-                                   )}
-                                </div>
-                             </div>
-                             
-                             <div className="flex items-center justify-between pt-3 border-t border-red-100/50">
-                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none">Action</span>
-                                   {isDonor && effectiveStatus === "MATCHED_DONOR" && (
+                                     {isAdmin && (
+                                        <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl text-red-500 hover:bg-red-50" onClick={() => handleDeleteRequest(request.id)}>
+                                          <Trash2 className="w-5 h-5" />
+                                        </Button>
+                                      )}
+                                     {requestMapLink && (
+                                       <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl hover:bg-red-50 group/map" asChild>
+                                         <a href={requestMapLink} target="_blank" rel="noreferrer"><LocateFixed className="w-5 h-5 text-red-500 group-hover/map:scale-110 transition-transform" /></a>
+                                       </Button>
+                                     )}
+                                  </div>
+                               </div>
+                               
+                               <div className="flex items-center justify-between pt-3 border-t border-red-100/50">
+                                  <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none">Action</span>
+                                     {isDonor && effectiveStatus === "MATCHED_DONOR" && (
+                                       <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="text-[10px] font-black border-red-200 text-red-600 hover:bg-red-50 uppercase tracking-widest h-8 px-3 rounded-lg"
+                                        onClick={() => handleShowQR(request.id)}
+                                       >
+                                         {showQrMap[request.id] ? "Hide QR" : "Scan to Verify"}
+                                       </Button>
+                                     )}
                                      <Button 
-                                      variant="outline" 
+                                      variant="ghost" 
                                       size="sm" 
-                                      className="text-[10px] font-black border-red-200 text-red-600 hover:bg-red-50 uppercase tracking-widest h-8 px-3 rounded-lg"
-                                      onClick={() => handleShowQR(request.id)}
-                                     >
-                                       {showQrMap[request.id] ? "Hide QR" : "Scan to Verify"}
-                                     </Button>
-                                   )}
-                                   <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="text-[10px] font-black text-primary hover:text-white hover:bg-primary uppercase tracking-widest h-8 px-3 rounded-lg border border-primary/20"
-                                    disabled={!(isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED"))}
-                                    onClick={() => {
-                                      if (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) {
-                                        navigate(`/eligibility-form?requestId=${request.id}`);
-                                      } else {
-                                        updateRequestStatus(request, "MATCHED_DONOR");
-                                      }
-                                    }}
-                                  >
-                                    {effectiveStatus === "DONATION_COMPLETED" ? "Completed ✓" : effectiveStatus === "MATCHED_DONOR" ? "Matched (Go to Hospital)" : (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) ? "Check Eligibility & Accept →" : "Awaiting Process"}
-                                  </Button>
-                                </div>
-
-                             {showQrMap[request.id] && qrTokens[request.id] && (
-                                <div className="mt-4 p-6 bg-white border border-dashed border-red-200 rounded-2xl flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                                   <div className="p-4 bg-white rounded-xl shadow-md border">
-                                      <QRCodeCanvas 
-                                        value={`http://192.168.100.17:5173/donor-form?request_id=${request.id}&donor_id=${user?.id}&patient_id=${request.userId}&token=${qrTokens[request.id]}`}
-                                        size={180}
-                                        level="H"
-                                        includeMargin={true}
-                                      />
-                                   </div>
-                                   <div className="text-center">
-                                      <p className="text-sm font-bold text-slate-900">Patient Verification QR</p>
-                                      <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Doctor must scan this to complete process</p>
-                                   </div>
-                                   <div className="flex items-center gap-2 p-2 bg-red-50 rounded text-red-600 font-mono text-[10px]">
-                                      Token: {qrTokens[request.id].substring(0, 16)}...
-                                   </div>
-                                </div>
-                             )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="py-10 border-2 border-dashed border-gray-100 rounded-3xl text-center bg-gray-50/50">
-                      <Heart className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                      <p className="text-gray-400 text-sm font-medium">No blood requests at the moment.</p>
-                    </div>
-                  )}
-                </section>
+                                      className="text-[10px] font-black text-primary hover:text-white hover:bg-primary uppercase tracking-widest h-8 px-3 rounded-lg border border-primary/20"
+                                      disabled={!(isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED"))}
+                                      onClick={() => {
+                                        if (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) {
+                                          navigate(`/eligibility-form?requestId=${request.id}`);
+                                        } else {
+                                          updateRequestStatus(request, "MATCHED_DONOR");
+                                        }
+                                      }}
+                                    >
+                                      {effectiveStatus === "DONATION_COMPLETED" ? "Completed ✓" : effectiveStatus === "MATCHED_DONOR" ? "Matched (Go to Hospital)" : (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) ? "Check Eligibility & Accept →" : "Awaiting Process"}
+                                    </Button>
+                                  </div>
+  
+                               {showQrMap[request.id] && qrTokens[request.id] && (
+                                  <div className="mt-4 p-6 bg-white border border-dashed border-red-200 rounded-2xl flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                                     <div className="p-4 bg-white rounded-xl shadow-md border">
+                                        <QRCodeCanvas 
+                                          value={`http://192.168.100.17:5173/donor-form?request_id=${request.id}&donor_id=${user?.id}&patient_id=${request.userId}&token=${qrTokens[request.id]}`}
+                                          size={180}
+                                          level="H"
+                                          includeMargin={true}
+                                        />
+                                     </div>
+                                     <div className="text-center">
+                                        <p className="text-sm font-bold text-slate-900">Patient Verification QR</p>
+                                        <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Doctor must scan this to complete process</p>
+                                     </div>
+                                     <div className="flex items-center gap-2 p-2 bg-red-50 rounded text-red-600 font-mono text-[10px]">
+                                        Token: {qrTokens[request.id].substring(0, 16)}...
+                                     </div>
+                                  </div>
+                               )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-10 border-2 border-dashed border-gray-100 rounded-3xl text-center bg-gray-50/50">
+                        <Heart className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                        <p className="text-gray-400 text-sm font-medium">No blood requests at the moment.</p>
+                      </div>
+                    )}
+                  </section>
+                )}
               </div>
             </Card>
           </div>
@@ -748,7 +753,6 @@ export function DashboardPage() {
       </div>
 
       <Footer />
-      <ChatBox />
     </div>
   );
 }

@@ -113,9 +113,14 @@ export const EligibilityResult = () => {
                   Accept Patient Request & Go to Hospital
                 </button>
               ) : (
-                <button onClick={() => navigate('/donation-options')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded shadow transition duration-200">
-                  Proceed to Donation Options
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button onClick={() => navigate('/donation-options')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded shadow transition duration-200">
+                    Proceed to Donation Options
+                  </button>
+                  <button onClick={() => navigate('/dashboard')} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded shadow transition duration-200">
+                    Continue to Dashboard/Home
+                  </button>
+                </div>
               )
             ) : (
               <button onClick={() => navigate('/dashboard')} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded shadow transition duration-200">

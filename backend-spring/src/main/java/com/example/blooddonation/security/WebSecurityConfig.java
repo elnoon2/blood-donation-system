@@ -87,6 +87,7 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/verify-donation/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/donor-eligibility/check").permitAll()
                 .requestMatchers("/ws-chat/**").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()

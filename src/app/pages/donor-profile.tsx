@@ -25,6 +25,8 @@ export function DonorProfilePage() {
     governorate: "Cairo",
     lastDonation: "",
   });
+  const [stats, setStats] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDonorDetails = async () => {
@@ -42,15 +44,34 @@ export function DonorProfilePage() {
           }));
         }
         
-        // Fetch donor specific availability
-        const donorResponse = await api.get("/donors/me");
-        if (donorResponse.data) {
-            setIsAvailable(donorResponse.data.availabilityStatus === "AVAILABLE");
-            setFormData(prev => ({
-                ...prev,
-                lastDonation: donorResponse.data.lastDonationDate || "",
-            }));
+        try {
+          // Fetch donor specific availability
+          const donorResponse = await api.get("/donors/me");
+          if (donorResponse.data) {
+              setIsAvailable(donorResponse.data.availabilityStatus === "AVAILABLE");
+              setFormData(prev => ({
+                  ...prev,
+                  lastDonation: donorResponse.data.lastDonationDate || "",
+              }));
+          }
+          // Fetch donor stats
+          const statsResponse = await api.get("/donors/stats");
+          setStats(statsResponse.data);
+  
+          // Fetch donation history
+          const historyResponse = await api.get("/donations/me");
+          setHistory(historyResponse.data || []);
+        } catch (donorErr) {
+          console.log("User is not registered as a donor yet or donor data is missing.");
+          setStats({
+            totalDonations: 0,
+            livesSaved: 0,
+            daysUntilEligible: 0,
+            impactScore: 0,
+            nextEligibleDate: "Available Now"
+          });
         }
+
       } catch (error) {
         console.error("Failed to fetch user details", error);
       }
@@ -84,18 +105,17 @@ export function DonorProfilePage() {
     }
   };
 
-  const donationHistory = [
-    { date: "March 15, 2026", location: "City Blood Center", type: "Whole Blood" },
-    { date: "December 20, 2025", location: "Memorial Hospital", type: "Platelets" },
-    { date: "September 10, 2025", location: "Community Center", type: "Whole Blood" },
-    { date: "June 5, 2025", location: "City Blood Center", type: "Whole Blood" },
-  ];
+  const donationHistory = history.map(d => ({
+    date: d.donationDate,
+    location: d.hospital?.name || "Hospital",
+    type: "Whole Blood"
+  }));
 
   const achievements = [
-    { title: "First Donation", icon: "🎉", date: "June 5, 2025" },
-    { title: "5 Donations", icon: "⭐", date: "December 20, 2025" },
-    { title: "Life Saver", icon: "❤️", date: "March 15, 2026" },
-    { title: "Hero Donor", icon: "🏆", date: "March 15, 2026" },
+    { title: "First Donation", icon: "🎉", date: history.length > 0 ? history[0].donationDate : "---", unlocked: history.length >= 1 },
+    { title: "5 Donations", icon: "⭐", date: history.length >= 5 ? history[4].donationDate : "---", unlocked: history.length >= 5 },
+    { title: "Life Saver", icon: "❤️", date: history.length >= 3 ? "Unlocked" : "---", unlocked: history.length >= 3 },
+    { title: "Hero Donor", icon: "🏆", date: history.length >= 10 ? "Unlocked" : "---", unlocked: history.length >= 10 },
   ];
 
   return (
@@ -240,7 +260,7 @@ export function DonorProfilePage() {
             <Card className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Donation History</h2>
               <div className="space-y-3">
-                {donationHistory.map((donation, index) => (
+                {donationHistory.length > 0 ? donationHistory.map((donation, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
@@ -258,7 +278,12 @@ export function DonorProfilePage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                    <div className="py-12 text-center text-gray-400">
+                        <Droplet className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p>No donation history yet.</p>
+                    </div>
+                )}
               </div>
             </Card>
           </div>
@@ -274,7 +299,7 @@ export function DonorProfilePage() {
                     <Droplet className="w-6 h-6 text-primary" fill="currentColor" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">12</div>
+                    <div className="text-2xl font-bold text-gray-900">{stats?.totalDonations || 0}</div>
                     <div className="text-sm text-gray-500">Total Donations</div>
                   </div>
                 </div>
@@ -283,7 +308,7 @@ export function DonorProfilePage() {
                     <Calendar className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">45</div>
+                    <div className="text-2xl font-bold text-gray-900">{stats?.daysUntilEligible || 0}</div>
                     <div className="text-sm text-gray-500">Days Until Eligible</div>
                   </div>
                 </div>
@@ -292,7 +317,7 @@ export function DonorProfilePage() {
                     <Award className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">850</div>
+                    <div className="text-2xl font-bold text-gray-900">{stats?.impactScore || 0}</div>
                     <div className="text-sm text-gray-500">Impact Score</div>
                   </div>
                 </div>
@@ -306,12 +331,16 @@ export function DonorProfilePage() {
                 {achievements.map((achievement, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg"
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                      achievement.unlocked 
+                        ? "bg-gradient-to-r from-primary/10 to-transparent" 
+                        : "opacity-40 grayscale"
+                    }`}
                   >
                     <div className="text-3xl">{achievement.icon}</div>
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{achievement.title}</h3>
-                      <p className="text-xs text-gray-500">{achievement.date}</p>
+                      <p className="text-xs text-gray-500">{achievement.unlocked ? `Unlocked on ${achievement.date}` : "Locked"}</p>
                     </div>
                   </div>
                 ))}
@@ -323,8 +352,8 @@ export function DonorProfilePage() {
               <div className="text-center space-y-3">
                 <Calendar className="w-12 h-12 text-primary mx-auto" />
                 <h3 className="font-semibold text-gray-900">Next Donation Eligible</h3>
-                <p className="text-2xl font-bold text-primary">June 24, 2026</p>
-                <p className="text-sm text-gray-600">45 days remaining</p>
+                <p className="text-2xl font-bold text-primary">{stats?.nextEligibleDate || "Available Now"}</p>
+                <p className="text-sm text-gray-600">{stats?.daysUntilEligible > 0 ? `${stats.daysUntilEligible} days remaining` : "You are ready to donate!"}</p>
               </div>
             </Card>
           </div>

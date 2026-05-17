@@ -23,8 +23,8 @@ public class QRService {
         
         QRVerificationToken verificationToken = QRVerificationToken.builder()
                 .request(request)
-                .donor(request.getUser()) // This might be the patient? Need to check Request logic.
-                .patient(request.getUser()) // Assuming patient for now if not clarified
+                .donor(request.getMatchedDonor() != null ? request.getMatchedDonor() : request.getUser()) 
+                .patient(request.getUser()) 
                 .token(token)
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .isUsed(false)

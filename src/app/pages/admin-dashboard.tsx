@@ -224,16 +224,7 @@ export function AdminDashboardPage() {
     { month: "Apr", donations: 178, requests: 156 },
   ];
 
-  const bloodTypeData = [
-    { name: "O+", value: 38, color: "hsl(0, 84%, 41%)" },
-    { name: "A+", value: 28, color: "hsl(0, 100%, 24%)" },
-    { name: "B+", value: 15, color: "hsl(33, 100%, 91%)" },
-    { name: "AB+", value: 8, color: "hsl(200, 100%, 14%)" },
-    { name: "O-", value: 6, color: "hsl(203, 39%, 57%)" },
-    { name: "A-", value: 3, color: "hsl(0, 84%, 41%)" },
-    { name: "B-", value: 1.5, color: "hsl(0, 100%, 24%)" },
-    { name: "AB-", value: 0.5, color: "hsl(33, 100%, 91%)" },
-  ];
+  const bloodTypeData = stats.bloodTypeData || [];
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white">
@@ -447,13 +438,13 @@ export function AdminDashboardPage() {
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="space-y-3 pl-8 border-l border-gray-100 hidden md:block">
-                        {bloodTypeData.slice(0, 4).map((b, i) => (
+                        {bloodTypeData.slice(0, 4).map((b: any, i: number) => (
                             <div key={i} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: b.color }} />
                                     <span className="text-sm font-bold text-gray-700">{b.name}</span>
                                 </div>
-                                <span className="text-sm font-black text-gray-900">{b.value}%</span>
+                                <span className="text-sm font-black text-gray-900">{b.value}</span>
                             </div>
                         ))}
                         <div className="pt-2">

@@ -41,11 +41,6 @@ export function Navbar() {
                 </Link>
               </>
             )}
-            {isDonor && (
-              <Link to="/dashboard" className="text-gray-700 hover:text-primary transition-colors">
-                Patient Requests
-              </Link>
-            )}
             <Link to="/contact-us" className="text-gray-700 hover:text-primary transition-colors">
               Contact
             </Link>
@@ -116,15 +111,6 @@ export function Navbar() {
                     Request Blood
                   </Link>
                 </>
-              )}
-              {isDonor && (
-                <Link
-                  to="/dashboard"
-                  className="text-gray-700 hover:text-primary transition-colors px-2 py-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Patient Requests
-                </Link>
               )}
               <Link
                 to="/contact-us"

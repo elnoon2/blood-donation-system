@@ -5,8 +5,24 @@ import { Button } from "../components/ui/button";
 import { StatsCard } from "../components/stats-card";
 import { Droplet, Users, Building2, Heart, Shield, Clock, Award, Search, Bell, CheckCircle2, Zap, Globe } from "lucide-react";
 import { Card } from "../components/ui/card";
+import { useState, useEffect } from "react";
+import api from "../../lib/api";
 
 export function LandingPage() {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await api.get("/public/stats");
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch landing stats", error);
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -77,19 +93,19 @@ export function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatsCard
               title="Active Donors"
-              value="12,458"
+              value={stats?.totalDonors?.toLocaleString() || "..."}
               icon={Users}
               trend={{ value: 12, isPositive: true }}
             />
             <StatsCard
               title="Partner Hospitals"
-              value="156"
+              value={stats?.totalHospitals?.toLocaleString() || "..."}
               icon={Building2}
               trend={{ value: 8, isPositive: true }}
             />
             <StatsCard
               title="Lives Saved"
-              value="8,742"
+              value={stats?.totalLivesSaved?.toLocaleString() || "..."}
               icon={Heart}
               trend={{ value: 23, isPositive: true }}
             />

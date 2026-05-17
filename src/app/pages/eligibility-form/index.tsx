@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import api from "../../../lib/api";
 
@@ -51,6 +51,64 @@ export const EligibilityForm = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isEligibleByTime, setIsEligibleByTime] = useState(true);
+  const [timeRestrictionMessage, setTimeRestrictionMessage] = useState("");
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userRes = await api.get("/auth/me");
+        const userData = userRes.data;
+        
+        let donorData = null;
+        try {
+          // If they registered as a donor, get donor specific fields
+          const donorRes = await api.get("/donors/" + userData.id); // Or find a way to get me. Wait, /donors/me was added to AuthController? No, it's in DonorController. Let's try /auth/me then fetch the donor by user ID. Actually, let's use the local storage if token is present. But backend is better.
+          // Let's just fetch all donors and find by userId or we can use /donors/me if it exists. DonorController has PUT /me, but maybe GET /me?
+        } catch (e) {
+          // User is not a donor yet
+        }
+
+        // Just autofill what we have
+        setFormData(prev => ({
+          ...prev,
+          fullName: userData.name || prev.fullName,
+          email: userData.email || prev.email,
+          phone: userData.phone || prev.phone,
+          bloodType: userData.bloodType || prev.bloodType,
+          governorate: userData.governorate || prev.governorate,
+        }));
+        
+        // Fetch donor info safely if possible
+        try {
+           const allDonors = await api.get("/donors");
+           const myDonor = allDonors.data.find((d: any) => d.user?.id === userData.id);
+           if (myDonor) {
+              if (myDonor.lastDonationDate) {
+                 setFormData(prev => ({...prev, lastDonationDate: myDonor.lastDonationDate}));
+                 
+                 const lastDate = new Date(myDonor.lastDonationDate);
+                 const threeMonthsAgo = new Date();
+                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+                 if (lastDate > threeMonthsAgo) {
+                    setIsEligibleByTime(false);
+                    setTimeRestrictionMessage("You cannot proceed. Your last donation was less than 3 months ago.");
+                 }
+              }
+           }
+        } catch(e) {}
+
+      } catch (err) {
+        console.error("Failed to fetch user profile for auto-fill", err);
+      }
+    };
+    
+    // Only fetch if we have a token
+    if (localStorage.getItem("token")) {
+       fetchUserData();
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -63,6 +121,10 @@ export const EligibilityForm = () => {
 
   const nextStep = () => {
     if (step === 1) {
+      if (!isEligibleByTime) {
+         setError(timeRestrictionMessage);
+         return;
+      }
       if (!formData.fullName || !formData.age || !formData.weight || !formData.bloodType || !formData.phone || !formData.governorate) {
         setError("Please fill in all the required basic information (Name, Age, Weight, Blood Type, Phone, Governorate).");
         return;
@@ -73,10 +135,22 @@ export const EligibilityForm = () => {
         setError("Please enter valid age and weight.");
         return;
       }
+      
+      // Additional check from date input if they change it manually
+      if (formData.lastDonationDate) {
+         const lastDate = new Date(formData.lastDonationDate);
+         const threeMonthsAgo = new Date();
+         threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+         if (lastDate > threeMonthsAgo) {
+            setError("You cannot proceed. Your last donation was less than 3 months ago.");
+            return;
+         }
+      }
     }
     setError("");
     setStep(step + 1);
   };
+  
   const prevStep = () => setStep(step - 1);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,6 +186,12 @@ export const EligibilityForm = () => {
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
               {error}
+            </div>
+          )}
+          
+          {!isEligibleByTime && step === 1 && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4 font-bold">
+              {timeRestrictionMessage}
             </div>
           )}
 
@@ -167,7 +247,7 @@ export const EligibilityForm = () => {
                 </div>
               </div>
               <div className="flex justify-end mt-8">
-                <button type="button" onClick={nextStep} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                <button type="button" onClick={nextStep} disabled={!isEligibleByTime} className={`text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200 ${!isEligibleByTime ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>
                   Next Step
                 </button>
               </div>

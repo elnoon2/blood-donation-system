@@ -42,9 +42,19 @@ public class DonationController {
     @Autowired
     BloodInventoryRepository inventoryRepository;
 
+    @Autowired
+    com.example.blooddonation.repository.DonorRepository donorRepository;
+
     @GetMapping
     public List<Donation> getAllDonations() {
         return donationRepository.findAll();
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public List<Donation> getMyDonations(Authentication auth) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        return donationRepository.findByUserId(userDetails.getId());
     }
 
     @GetMapping("/{id}")
@@ -59,6 +69,14 @@ public class DonationController {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
         User user = userRepository.findById(userDetails.getId()).get();
 
+        com.example.blooddonation.entity.Donor donor = donorRepository.findByUserId(user.getId()).orElse(null);
+        if (donor != null && donor.getLastDonationDate() != null) {
+            LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
+            if (donor.getLastDonationDate().isAfter(threeMonthsAgo)) {
+                return ResponseEntity.badRequest().body(new MessageResponse("Error: You can only donate once every 3 months."));
+            }
+        }
+
         Hospital hospital = hospitalRepository.findById(dto.getHospitalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Hospital not found"));
 
@@ -71,6 +89,11 @@ public class DonationController {
                 .status(DonationStatus.COMPLETED)
                 .build();
         donationRepository.save(donation);
+
+        if (donor != null) {
+            donor.setLastDonationDate(LocalDate.now());
+            donorRepository.save(donor);
+        }
 
         // Auto update inventory
         Optional<BloodInventory> existingInv = inventoryRepository.findByHospitalIdAndBloodType(hospital.getId(), user.getBloodType());

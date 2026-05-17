@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DonationRepository extends JpaRepository<Donation, Long> {
+    long countByUserId(Long userId);
+    java.util.List<Donation> findByUserId(Long userId);
 }

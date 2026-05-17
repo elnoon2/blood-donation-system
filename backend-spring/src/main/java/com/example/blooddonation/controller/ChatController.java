@@ -59,6 +59,7 @@ public class ChatController {
     }
 
     @GetMapping("/history/{userId}/{otherUserId}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable Long userId, @PathVariable Long otherUserId) {
         User user1 = userRepository.findById(userId).orElse(null);
         User user2 = userRepository.findById(otherUserId).orElse(null);

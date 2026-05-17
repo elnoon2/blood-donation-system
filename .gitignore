@@ -44,3 +44,8 @@ mvnw.cmd
 .gemini/
 .temp/
 tmp/
+
+# WhatsApp service session and dependencies
+whatsapp-service/node_modules/
+whatsapp-service/.wwebjs_auth/
+whatsapp-service/.wwebjs_cache/

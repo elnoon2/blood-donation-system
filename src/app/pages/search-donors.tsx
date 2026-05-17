@@ -14,7 +14,7 @@ import { useAuth } from "../context/AuthContext";
 export function SearchDonorsPage() {
   const { user } = useAuth();
   const [filters, setFilters] = useState({
-    bloodType: "all",
+    bloodType: user?.bloodType || "all",
     governorate: "all",
     searchTerm: "",
     nearbyOnly: false,
@@ -40,6 +40,12 @@ export function SearchDonorsPage() {
   };
 
   useEffect(() => {
+    if (user?.bloodType) {
+      setFilters(prev => ({ ...prev, bloodType: user.bloodType }));
+    }
+  }, [user]);
+
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchDonors();
     }, 500); // Debounce search
@@ -60,8 +66,9 @@ export function SearchDonorsPage() {
         !filters.searchTerm ||
         donor.user.name.toLowerCase().includes(filters.searchTerm.toLowerCase());
       const matchesNearby = !filters.nearbyOnly || donor?.user?.governorate === user?.governorate;
+      const matchesBloodType = filters.bloodType === "all" || donor?.user?.bloodType === filters.bloodType;
       const matchesAvailable = !filters.availableOnly || donor?.availabilityStatus === "AVAILABLE";
-      return matchesSearch && matchesNearby && matchesAvailable;
+      return matchesSearch && matchesNearby && matchesAvailable && matchesBloodType;
     })
     .sort((a, b) => getMatchingScore(b) - getMatchingScore(a));
 

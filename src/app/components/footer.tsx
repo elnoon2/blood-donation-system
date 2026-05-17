@@ -56,17 +56,17 @@ export function Footer() {
             <h3 className="text-white font-semibold mb-4">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-sm hover:text-primary transition-colors">
+                <a href="https://www.who.int/news-room/fact-sheets/detail/blood-safety-and-availability" target="_blank" rel="noreferrer" className="text-sm hover:text-primary transition-colors">
                   About Blood Donation
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm hover:text-primary transition-colors">
+                <a href="https://www.redcrossblood.org/donate-blood/how-to-donate/eligibility-requirements.html" target="_blank" rel="noreferrer" className="text-sm hover:text-primary transition-colors">
                   Eligibility Criteria
                 </a>
               </li>
               <li>
-                <a href="#" className="text-sm hover:text-primary transition-colors">
+                <a href="https://www.who.int/campaigns/world-blood-donor-day/2018/who-can-give-blood" target="_blank" rel="noreferrer" className="text-sm hover:text-primary transition-colors">
                   FAQs
                 </a>
               </li>
