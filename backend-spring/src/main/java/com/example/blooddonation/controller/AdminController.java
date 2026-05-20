@@ -164,6 +164,9 @@ public class AdminController {
         }
 
         // 2. Clear all user-dependent records across the system
+        entityManager.createNativeQuery("DELETE FROM donor_request WHERE donor_id = :userId")
+                .setParameter("userId", id).executeUpdate();
+
         entityManager.createNativeQuery("DELETE FROM qr_verification_tokens WHERE donor_id = :userId OR patient_id = :userId")
                 .setParameter("userId", id).executeUpdate();
         
@@ -211,6 +214,9 @@ public class AdminController {
         }
         
         // 1. Delete dependent tokens and audits
+        entityManager.createNativeQuery("DELETE FROM donor_request WHERE request_id = :requestId")
+                .setParameter("requestId", id).executeUpdate();
+
         entityManager.createNativeQuery("DELETE FROM qr_verification_tokens WHERE request_id = :requestId")
                 .setParameter("requestId", id).executeUpdate();
                 

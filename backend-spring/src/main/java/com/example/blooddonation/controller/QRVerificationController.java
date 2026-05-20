@@ -38,6 +38,12 @@ public class QRVerificationController {
     private DonationFormRepository donationFormRepository;
 
     @Autowired
+    private DonorRepository donorRepository;
+
+    @Autowired
+    private DonationRepository donationRepository;
+
+    @Autowired
     private PasswordEncoder encoder;
 
     @Autowired
@@ -192,6 +198,29 @@ public class QRVerificationController {
         Request request = qrToken.getRequest();
         request.setStatus(RequestStatus.DONATION_COMPLETED); // Or whatever the final state is
         requestRepository.save(request);
+
+        // 6. Update lastDonationDate for Donor
+        java.util.Optional<Donor> donorOpt = donorRepository.findByUserId(qrToken.getDonor().getId());
+        if (donorOpt.isPresent()) {
+            Donor actualDonor = donorOpt.get();
+            if (form.getDonationDate() != null) {
+                actualDonor.setLastDonationDate(form.getDonationDate());
+            }
+            donorRepository.save(actualDonor);
+        }
+
+        // 7. Save Donation History
+        if (request.getHospital() != null) {
+            Donation donation = Donation.builder()
+                    .user(qrToken.getDonor())
+                    .hospital(request.getHospital())
+                    .bloodType(request.getBloodType())
+                    .quantity(form.getBagsCount() != null ? form.getBagsCount() : 1)
+                    .donationDate(form.getDonationDate() != null ? form.getDonationDate() : java.time.LocalDate.now())
+                    .status(com.example.blooddonation.enums.DonationStatus.COMPLETED)
+                    .build();
+            donationRepository.save(donation);
+        }
 
         return ResponseEntity.ok(Map.of("message", "Verification successful. Donation has been recorded."));
     }

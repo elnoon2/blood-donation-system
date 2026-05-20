@@ -29,4 +29,28 @@ public class Donor {
     // "AVAILABLE" or "UNAVAILABLE"
     @Column(name = "availability_status")
     private String availabilityStatus;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "total_donations")
+    @Builder.Default
+    private Integer totalDonations = 0;
+
+    @Column(name = "weight")
+    private Double weight;
+
+    @Column(name = "age")
+    private Integer age;
+
+    @Column(name = "active")
+    @Builder.Default
+    private Boolean active = true;
+
+    @Column(name = "suspended")
+    @Builder.Default
+    private Boolean suspended = false;
 }

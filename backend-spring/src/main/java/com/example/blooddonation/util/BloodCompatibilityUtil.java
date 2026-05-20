@@ -23,6 +23,14 @@ public class BloodCompatibilityUtil {
         if (recipientType == null || recipientType.isBlank()) {
             return Collections.emptyList();
         }
-        return COMPATIBILITY_MAP.getOrDefault(recipientType.toUpperCase(), Collections.singletonList(recipientType));
+        return COMPATIBILITY_MAP.getOrDefault(recipientType.toUpperCase().trim(), Collections.singletonList(recipientType));
+    }
+
+    public static boolean canDonate(String donorBloodType, String receiverBloodType) {
+        if (donorBloodType == null || receiverBloodType == null || donorBloodType.isBlank() || receiverBloodType.isBlank()) {
+            return false;
+        }
+        List<String> compatibleDonors = getCompatibleDonorTypes(receiverBloodType);
+        return compatibleDonors.contains(donorBloodType.toUpperCase().trim());
     }
 }

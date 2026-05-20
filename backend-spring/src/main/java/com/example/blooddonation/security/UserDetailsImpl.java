@@ -39,7 +39,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getName(),
                 user.getEmail(),
                 user.getPassword(),
-                user.getIsApproved(),
+                user.getIsApproved() != null && user.getIsApproved(),
                 Collections.singletonList(authority));
     }
 

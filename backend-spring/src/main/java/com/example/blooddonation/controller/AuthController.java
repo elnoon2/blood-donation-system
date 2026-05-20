@@ -13,6 +13,7 @@ import com.example.blooddonation.repository.UserRepository;
 import com.example.blooddonation.security.JwtUtils;
 import com.example.blooddonation.security.UserDetailsImpl;
 import jakarta.validation.Valid;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -132,7 +133,19 @@ public class AuthController {
         if(authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return ResponseEntity.status(401).body(new MessageResponse("Unauthorized"));
         }
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();  
-        return ResponseEntity.ok(userRepository.findById(userDetails.getId()).get());
+        try {
+            if (!(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401).body(new MessageResponse("Invalid authentication principal"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();  
+            Optional<User> userOpt = userRepository.findById(userDetails.getId());
+            if (userOpt.isPresent()) {
+                return ResponseEntity.ok(userOpt.get());
+            } else {
+                return ResponseEntity.status(404).body(new MessageResponse("User not found"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new MessageResponse("Error retrieving user: " + e.getMessage()));
+        }
     }
 }

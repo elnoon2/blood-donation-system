@@ -63,6 +63,19 @@ public class Request {
     @Column(name = "verification_code", length = 6)
     private String verificationCode;
 
+    @Column(name = "patient_name")
+    private String patientName;
+
+    @Column(name = "bags_needed")
+    private Integer bagsNeeded;
+
+    @Column(name = "urgency_level")
+    private String urgencyLevel;
+
+    @Column(name = "confirmed_donors")
+    @Builder.Default
+    private Integer confirmedDonors = 0;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "hospital_id")
     private Hospital hospital;

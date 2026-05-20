@@ -27,6 +27,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,7 +52,13 @@ public class RequestController {
     NotificationRepository notificationRepository;
 
     @Autowired
+    com.example.blooddonation.repository.DonorRequestRepository donorRequestRepository;
+
+    @Autowired
     private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private com.example.blooddonation.service.RecommendationService recommendationService;
 
     @PostMapping
     @org.springframework.transaction.annotation.Transactional
@@ -72,6 +79,10 @@ public class RequestController {
                 .requestDate(LocalDate.now())
                 .hospital(dto.getHospitalId() != null ? hospitalRepository.findById(dto.getHospitalId())
                     .orElse(null) : null)
+                .patientName(dto.getPatientName())
+                .bagsNeeded(dto.getBagsNeeded())
+                .urgencyLevel(dto.getUrgencyLevel())
+                .confirmedDonors(0)
                 .build();
 
         requestRepository.save(request);
@@ -158,6 +169,19 @@ public class RequestController {
         }
     }
 
+    private int getUrgencyScore(String urgency) {
+        if (urgency == null) return 0;
+        switch (urgency.toLowerCase()) {
+            case "emergency": return 4;
+            case "critical": return 3;
+            case "urgent": return 2;
+            case "medium": return 1;
+            case "normal": return 0;
+            case "low": return -1;
+            default: return 0;
+        }
+    }
+
     @GetMapping
     public List<RequestResponseDTO> getAllRequests(Authentication auth) {
         User currentUser = null;
@@ -187,9 +211,38 @@ public class RequestController {
                     
                     // Donors/Public can see Pending, Confirmed or Matched requests
                     RequestStatus s = r.getStatus();
-                    return s == RequestStatus.PENDING ||
+                    boolean isVisibleStatus = s == RequestStatus.PENDING ||
                            s == RequestStatus.HOSPITAL_CONFIRMED || 
                            s == RequestStatus.MATCHED_DONOR;
+
+                    if (!isVisibleStatus) return false;
+
+                    // For donors, filter by compatibility
+                    if (finalUser != null && finalUser.getRole() == Role.DONOR) {
+                        return com.example.blooddonation.util.BloodCompatibilityUtil.canDonate(finalUser.getBloodType(), r.getBloodType());
+                    }
+
+                    return true;
+                })
+                .sorted((r1, r2) -> {
+                    // Sorting logic: Emergency first, then matching location, then newest date
+                    int score1 = getUrgencyScore(r1.getUrgencyLevel());
+                    int score2 = getUrgencyScore(r2.getUrgencyLevel());
+                    if (score1 != score2) {
+                        return Integer.compare(score2, score1); // Descending score
+                    }
+                    
+                    // Same governorate gets priority
+                    boolean r1GovMatch = finalUser != null && finalUser.getGovernorate() != null && finalUser.getGovernorate().equalsIgnoreCase(r1.getGovernorate());
+                    boolean r2GovMatch = finalUser != null && finalUser.getGovernorate() != null && finalUser.getGovernorate().equalsIgnoreCase(r2.getGovernorate());
+                    if (r1GovMatch && !r2GovMatch) return -1;
+                    if (!r1GovMatch && r2GovMatch) return 1;
+                    
+                    // Newest date
+                    if (r1.getRequestDate() != null && r2.getRequestDate() != null) {
+                        return r2.getRequestDate().compareTo(r1.getRequestDate());
+                    }
+                    return 0;
                 })
                 .map(r -> RequestResponseDTO.from(r, finalUser))
                 .collect(Collectors.toList());
@@ -282,5 +335,61 @@ public class RequestController {
 
         requestRepository.save(request);
         return ResponseEntity.ok(RequestResponseDTO.from(request, actingUser));
+    }
+
+    @PostMapping("/{id}/accept")
+    @PreAuthorize("hasRole('DONOR')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> acceptRequest(@PathVariable Long id, Authentication auth) {
+        UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
+        User currentUser = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
+        Request request = requestRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
+        
+        if (request.getStatus() == RequestStatus.DONATION_COMPLETED || request.getStatus() == RequestStatus.CANCELLED) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Request is already completed or cancelled."));
+        }
+        
+        // Cooldown check
+        Donor donor = donorRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Donor profile not found"));
+        
+        if (donor.getLastDonationDate() != null) {
+            if (donor.getLastDonationDate().isAfter(java.time.LocalDate.now().minusMonths(3))) {
+                return ResponseEntity.badRequest().body(new MessageResponse("You must wait 3 months between donations."));
+            }
+        }
+        
+        if (donorRequestRepository.existsByDonorAndRequest(currentUser, request)) {
+            return ResponseEntity.badRequest().body(new MessageResponse("You have already accepted this request."));
+        }
+        
+        com.example.blooddonation.entity.DonorRequest donorRequest = com.example.blooddonation.entity.DonorRequest.builder()
+                .donor(currentUser)
+                .request(request)
+                .acceptedAt(java.time.LocalDateTime.now())
+                .build();
+        
+        donorRequestRepository.save(donorRequest);
+        
+        int confirmed = request.getConfirmedDonors() != null ? request.getConfirmedDonors() : 0;
+        confirmed++;
+        request.setConfirmedDonors(confirmed);
+        
+        int bagsNeeded = request.getBagsNeeded() != null ? request.getBagsNeeded() : 1;
+        if (confirmed >= bagsNeeded) {
+            request.setStatus(RequestStatus.DONATION_COMPLETED);
+        }
+        requestRepository.save(request);
+        
+        return ResponseEntity.ok(new MessageResponse("Request accepted successfully"));
+    }
+
+    @GetMapping("/{id}/recommended-donors")
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
+    public ResponseEntity<?> getRecommendedDonors(@PathVariable Long id) {
+        return ResponseEntity.ok(recommendationService.getTopRecommendedDonors(id));
     }
 }

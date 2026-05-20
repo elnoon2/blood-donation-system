@@ -1,5 +1,6 @@
 -- Final Oracle SQL Schema for Smart Blood Donation System (All 13 Tables)
 -- Properly ordered drops to handle constraints
+DROP TABLE DONOR_REQUEST CASCADE CONSTRAINTS;
 DROP TABLE HOME_COLLECTION_REQUESTS CASCADE CONSTRAINTS;
 DROP TABLE DONOR_HEALTH_ASSESSMENTS CASCADE CONSTRAINTS;
 DROP TABLE DONATION_FORMS CASCADE CONSTRAINTS;
@@ -48,6 +49,13 @@ CREATE TABLE donors (
     user_id NUMBER(19) NOT NULL,
     last_donation_date DATE,
     availability_status VARCHAR2(50) DEFAULT 'AVAILABLE',
+    latitude NUMBER,
+    longitude NUMBER,
+    total_donations NUMBER(10) DEFAULT 0,
+    weight NUMBER,
+    age NUMBER(10),
+    active NUMBER(1) DEFAULT 1,
+    suspended NUMBER(1) DEFAULT 0,
     CONSTRAINT fk_donor_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -69,11 +77,26 @@ CREATE TABLE requests (
     verification_code VARCHAR2(6),
     hospital_id NUMBER(19),
     matched_donor_id NUMBER(19),
+    patient_name VARCHAR2(255),
+    bags_needed NUMBER(10) DEFAULT 1,
+    urgency_level VARCHAR2(50),
+    confirmed_donors NUMBER(10) DEFAULT 0,
     CONSTRAINT fk_req_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_req_hosp FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE SET NULL,
     CONSTRAINT fk_req_matched FOREIGN KEY (matched_donor_id) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT chk_req_donor_conf CHECK (donor_confirmed IN (0, 1)),
     CONSTRAINT chk_req_patient_conf CHECK (patient_confirmed IN (0, 1))
+);
+
+-- 4.5. Donor Request Junction Table
+CREATE TABLE donor_request (
+    id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    donor_id NUMBER(19) NOT NULL,
+    request_id NUMBER(19) NOT NULL,
+    accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dr_donor FOREIGN KEY (donor_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_dr_req FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE,
+    CONSTRAINT uq_donor_request UNIQUE (donor_id, request_id)
 );
 
 -- 5. Blood Inventory

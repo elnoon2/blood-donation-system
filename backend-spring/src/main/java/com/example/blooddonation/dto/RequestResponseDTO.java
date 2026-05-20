@@ -24,6 +24,10 @@ public class RequestResponseDTO {
     private String verificationCode;
     private Long hospitalId;
     private String hospitalName;
+    private String patientName;
+    private Integer bagsNeeded;
+    private String urgencyLevel;
+    private Integer confirmedDonors;
 
     public static RequestResponseDTO from(Request r, com.example.blooddonation.entity.User currentUser) {
         RequestResponseDTO dto = new RequestResponseDTO();
@@ -35,6 +39,10 @@ public class RequestResponseDTO {
         dto.setDonorConfirmed(Boolean.TRUE.equals(r.getDonorConfirmed()));
         dto.setPatientConfirmed(Boolean.TRUE.equals(r.getPatientConfirmed()));
         dto.setRequestDate(r.getRequestDate());
+        dto.setPatientName(r.getPatientName());
+        dto.setBagsNeeded(r.getBagsNeeded());
+        dto.setUrgencyLevel(r.getUrgencyLevel());
+        dto.setConfirmedDonors(r.getConfirmedDonors() != null ? r.getConfirmedDonors() : 0);
         
         boolean canSeeDetails = false;
         if (currentUser != null) {

@@ -11,11 +11,7 @@ export const EligibilityResult = () => {
 
   const handleAcceptRequest = async () => {
     try {
-      await api.patch(`/requests/${requestId}/status`, {
-        status: "MATCHED_DONOR",
-        donorConfirmed: false,
-        patientConfirmed: false,
-      });
+      await api.post(`/requests/${requestId}/accept`);
       toast.success("Request Accepted", {
         description: "You have successfully accepted the request after proving your eligibility."
       });

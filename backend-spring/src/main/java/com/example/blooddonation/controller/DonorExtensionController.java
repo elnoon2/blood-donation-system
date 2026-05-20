@@ -43,12 +43,23 @@ public class DonorExtensionController {
     }
 
     @PostMapping("/donor-eligibility/check")
-    public ResponseEntity<EligibilityAssessmentDto> checkEligibility(
+    public ResponseEntity<?> checkEligibility(
             @RequestBody EligibilityAssessmentDto dto, 
             Authentication authentication) {
-        Long donorId = getDonorIdFromAuthentication(authentication);
-        EligibilityAssessmentDto result = eligibilityService.evaluateAndSaveAssessment(donorId, dto);
-        return ResponseEntity.ok(result);
+        try {
+            Long donorId = getDonorIdFromAuthentication(authentication);
+            EligibilityAssessmentDto result = eligibilityService.evaluateAndSaveAssessment(donorId, dto);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            java.util.Map<String, String> errorBody = new java.util.HashMap<>();
+            errorBody.put("error", e.getClass().getSimpleName() + ": " + e.getMessage());
+            Throwable cause = e.getCause();
+            if (cause != null) {
+                errorBody.put("cause", cause.getClass().getSimpleName() + ": " + cause.getMessage());
+            }
+            return ResponseEntity.status(500).body(errorBody);
+        }
     }
 
     @PostMapping("/home-collection-request/create")

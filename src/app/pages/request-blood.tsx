@@ -23,6 +23,7 @@ export function RequestBloodPage() {
     bloodType: "A+",
     units: "1",
     hospitalId: "" as string | number,
+    patientName: "",
     governorate: "Cairo",
     phone: "",
     urgency: "medium",
@@ -101,7 +102,7 @@ export function RequestBloodPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.bloodType || !formData.units || !formData.governorate || !formData.phone) {
+    if (!formData.bloodType || !formData.units || !formData.governorate || !formData.phone || !formData.patientName) {
         toast.error("Please fill in all required fields.");
         return;
     }
@@ -117,6 +118,9 @@ export function RequestBloodPage() {
         requesterLongitude: requesterLocation?.lng,
         requesterMapLink: requesterLocation?.mapLink,
         status: "PENDING",
+        patientName: formData.patientName,
+        bagsNeeded: parseInt(formData.units),
+        urgencyLevel: formData.urgency,
         hospitalId: formData.hospitalId ? Number(formData.hospitalId) : null,
       });
       
@@ -157,6 +161,18 @@ export function RequestBloodPage() {
           <div className="lg:col-span-2">
             <Card className="p-5 sm:p-8">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Patient Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="patientName">Patient Full Name *</Label>
+                  <Input
+                    id="patientName"
+                    placeholder="e.g., John Doe"
+                    value={formData.patientName}
+                    onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
+                    required
+                  />
+                </div>
+
                 {/* Blood Type & Units */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -261,10 +277,10 @@ export function RequestBloodPage() {
                     onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
                     required
                   >
-                    <option value="critical">Critical (Immediate)</option>
-                    <option value="high">High (Within 24 hours)</option>
-                    <option value="medium">Medium (Within 48 hours)</option>
-                    <option value="low">Low (Within a week)</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
 

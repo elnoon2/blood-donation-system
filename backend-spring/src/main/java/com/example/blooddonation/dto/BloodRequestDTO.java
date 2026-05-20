@@ -27,4 +27,14 @@ public class BloodRequestDTO {
     private String requesterMapLink;
 
     private Long hospitalId;
+
+    @NotBlank(message = "Patient name is required")
+    private String patientName;
+
+    @NotBlank(message = "Urgency level is required")
+    private String urgencyLevel;
+
+    @NotNull(message = "Bags needed is required")
+    @Positive(message = "Bags needed must be greater than zero")
+    private Integer bagsNeeded;
 }

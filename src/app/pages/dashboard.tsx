@@ -63,6 +63,28 @@ export function DashboardPage() {
   >({});
   const [qrTokens, setQrTokens] = useState<Record<number, string>>({});
   const [showQrMap, setShowQrMap] = useState<Record<number, boolean>>({});
+  const [recommendedDonors, setRecommendedDonors] = useState<Record<number, any[]>>({});
+  const [loadingRecommendations, setLoadingRecommendations] = useState<Record<number, boolean>>({});
+
+  const fetchRecommendedDonors = async (requestId: number) => {
+    if (recommendedDonors[requestId]) {
+        setRecommendedDonors(prev => {
+            const next = { ...prev };
+            delete next[requestId];
+            return next;
+        });
+        return;
+    }
+    setLoadingRecommendations(prev => ({ ...prev, [requestId]: true }));
+    try {
+        const response = await api.get(`/requests/${requestId}/recommended-donors`);
+        setRecommendedDonors(prev => ({ ...prev, [requestId]: response.data }));
+    } catch (error) {
+        toast.error("Failed to fetch recommended donors. Only ADMIN/HOSPITAL can view this.");
+    } finally {
+        setLoadingRecommendations(prev => ({ ...prev, [requestId]: false }));
+    }
+  };
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -468,7 +490,12 @@ export function DashboardPage() {
                 {(isDonor || isAdmin) && (
                   <section className={(isPatient || isAdmin) ? "pt-8 border-t border-gray-100" : ""}>
                     <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 border-l-4 border-red-500 pl-4">Urgent Help Needed</h3>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 border-l-4 border-red-500 pl-4">Urgent Help Needed</h3>
+                        {isDonor && user?.bloodType && (
+                          <p className="text-sm text-gray-500 mt-1 pl-4">Showing compatible blood requests for your blood type: <span className="font-bold text-red-600">{user.bloodType}</span></p>
+                        )}
+                      </div>
                     </div>
 
                     {requestsLoading ? (
@@ -492,8 +519,11 @@ export function DashboardPage() {
                                       {request.bloodType}
                                     </div>
                                     <div>
-                                      <h4 className="font-black text-gray-900 text-lg">Requester: {request.userName}</h4>
-                                      <div className="flex items-center gap-2 mt-1">
+                                      <h4 className="font-black text-gray-900 text-lg">Patient: {request.patientName || request.userName}</h4>
+                                      <div className="text-sm font-semibold text-gray-700">
+                                        Bags Needed: {request.bagsNeeded || 1} | Confirmed Donors: {request.confirmedDonors || 0}
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2 mt-1">
                                          <Badge className={`${getStatusBadgeClass(effectiveStatus)} border-none text-[10px] font-black uppercase px-2 py-0.5 flex items-center gap-1`}>
                                            {(effectiveStatus === "PENDING" || effectiveStatus === "UNDER_REVIEW") && <Clock className="w-3 h-3" />}
                                            {effectiveStatus === "HOSPITAL_CONFIRMED" && <Check className="w-3 h-3" />}
@@ -501,6 +531,11 @@ export function DashboardPage() {
                                            {effectiveStatus === "DONATION_COMPLETED" && <Droplets className="w-3 h-3" />}
                                            {effectiveStatus.replace(/_/g, ' ')}
                                          </Badge>
+                                         {request.urgencyLevel && (
+                                           <Badge className={`${request.urgencyLevel.toLowerCase() === 'emergency' ? 'bg-red-600 text-white' : request.urgencyLevel.toLowerCase() === 'urgent' ? 'bg-orange-500 text-white' : 'bg-gray-500 text-white'} border-none text-[10px] font-black uppercase px-2 py-0.5`}>
+                                             {request.urgencyLevel}
+                                           </Badge>
+                                         )}
                                          <span className="text-[11px] text-gray-500 font-bold tracking-tight bg-white/50 px-2 py-0.5 rounded-lg border border-red-100/50">{request.governorate} • {request.requestDate}</span>
                                       </div>
                                     </div>
@@ -509,6 +544,11 @@ export function DashboardPage() {
                                      <Button variant="secondary" className="rounded-xl h-10 font-bold bg-white border border-gray-200 shadow-sm transition-colors hover:bg-gray-50" onClick={() => handleHelpNow(request)}>
                                        Help Info
                                      </Button>
+                                     {isAdmin && (
+                                        <Button variant="outline" className="rounded-xl h-10 font-bold border-primary text-primary" onClick={() => fetchRecommendedDonors(request.id)}>
+                                            {loadingRecommendations[request.id] ? "Loading..." : "Top Donors"}
+                                        </Button>
+                                     )}
                                      {isAdmin && (
                                         <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl text-red-500 hover:bg-red-50" onClick={() => handleDeleteRequest(request.id)}>
                                           <Trash2 className="w-5 h-5" />
@@ -568,6 +608,34 @@ export function DashboardPage() {
                                      <div className="flex items-center gap-2 p-2 bg-red-50 rounded text-red-600 font-mono text-[10px]">
                                         Token: {qrTokens[request.id].substring(0, 16)}...
                                      </div>
+                                  </div>
+                               )}
+
+                               {recommendedDonors[request.id] && (
+                                  <div className="mt-4 p-4 bg-white border border-gray-200 rounded-2xl animate-in fade-in duration-300">
+                                      <h5 className="font-bold text-gray-900 mb-3 border-l-4 border-primary pl-2">Top Recommended Donors</h5>
+                                      {recommendedDonors[request.id].length > 0 ? (
+                                          <div className="space-y-3">
+                                              {recommendedDonors[request.id].map((donor: any) => (
+                                                  <div key={donor.donorId} className="p-3 border border-gray-100 bg-gray-50 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                                      <div>
+                                                          <div className="flex items-center gap-2">
+                                                              <h6 className="font-bold text-gray-900">{donor.donorName}</h6>
+                                                              <Badge className="bg-primary/10 text-primary border-none text-[10px]">{donor.bloodType}</Badge>
+                                                              <span className="text-xs font-bold text-amber-500">Score: {donor.recommendationScore}</span>
+                                                          </div>
+                                                          <p className="text-xs text-gray-500 mt-1">{donor.recommendationReason}</p>
+                                                      </div>
+                                                      <div className="text-right">
+                                                          <div className="text-xs font-bold text-gray-700">Donations: {donor.totalDonations}</div>
+                                                          <div className="text-xs font-bold text-gray-700">{donor.distanceKm ? `${donor.distanceKm.toFixed(1)} km away` : 'Distance unknown'}</div>
+                                                      </div>
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      ) : (
+                                          <p className="text-sm text-gray-500">No eligible recommended donors found.</p>
+                                      )}
                                   </div>
                                )}
                             </div>

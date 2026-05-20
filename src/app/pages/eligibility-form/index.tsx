@@ -48,67 +48,95 @@ export const EligibilityForm = () => {
     doYouAgreeToMedicalReview: false,
   });
 
-  const [step, setStep] = useState(1);
+  const isLoggedIn = !!localStorage.getItem("token");
+  const [step, setStep] = useState(isLoggedIn ? 2 : 1);
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(isLoggedIn);
   const [error, setError] = useState("");
   const [isEligibleByTime, setIsEligibleByTime] = useState(true);
   const [timeRestrictionMessage, setTimeRestrictionMessage] = useState("");
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    const checkEligibilityAutomatically = async () => {
+      let stage = "initial";
       try {
+        stage = "fetching user profile (/auth/me)";
         const userRes = await api.get("/auth/me");
         const userData = userRes.data;
         
+        stage = "fetching donor profile (/donors/me)";
         let donorData = null;
         try {
-          // If they registered as a donor, get donor specific fields
-          const donorRes = await api.get("/donors/" + userData.id); // Or find a way to get me. Wait, /donors/me was added to AuthController? No, it's in DonorController. Let's try /auth/me then fetch the donor by user ID. Actually, let's use the local storage if token is present. But backend is better.
-          // Let's just fetch all donors and find by userId or we can use /donors/me if it exists. DonorController has PUT /me, but maybe GET /me?
+          const donorRes = await api.get("/donors/me");
+          donorData = donorRes.data;
         } catch (e) {
-          // User is not a donor yet
+          console.log("Donor profile not found, maybe patient");
         }
 
-        // Just autofill what we have
-        setFormData(prev => ({
-          ...prev,
-          fullName: userData.name || prev.fullName,
-          email: userData.email || prev.email,
-          phone: userData.phone || prev.phone,
-          bloodType: userData.bloodType || prev.bloodType,
-          governorate: userData.governorate || prev.governorate,
-        }));
+        stage = "building assessment payload";
+        const parsedAge = donorData?.age ? parseInt(donorData.age) : null;
+        const parsedWeight = donorData?.weight ? parseFloat(donorData.weight) : null;
+
+        const payload = {
+          fullName: userData.name || "",
+          email: userData.email || "",
+          phone: userData.phone || "",
+          bloodType: userData.bloodType || "",
+          governorate: userData.governorate || "",
+          city: userData.city || "",
+          address: userData.address || "",
+          age: parsedAge,
+          weight: parsedWeight,
+          lastDonationDate: donorData?.lastDonationDate || null,
+          doYouHaveFever: false,
+          doYouHaveColdOrFlu: false,
+          doYouHaveChronicDisease: false,
+          chronicDiseaseDetails: "",
+          doYouHaveHeartDisease: false,
+          doYouHaveDiabetes: false,
+          doYouHaveHighBloodPressure: false,
+          doYouHaveAnemia: false,
+          doYouHaveHepatitis: false,
+          doYouHaveKidneyDisease: false,
+          doYouHaveLiverDisease: false,
+          doYouHaveBloodDisorder: false,
+          areYouTakingMedications: false,
+          medicationDetails: "",
+          didYouHaveRecentSurgery: false,
+          surgeryDetails: "",
+          areYouPregnantOrRecentlyPregnant: false,
+          doYouSmoke: false,
+          doYouHaveRecentTattooOrPiercing: false,
+          doYouHaveRecentInfection: false,
+          doYouHaveRecentBleeding: false,
+          doYouFeelDizzyOrWeak: false,
+          anyOtherMedicalCondition: "",
+          sleptWellLastNight: true,
+          ateBeforeDonation: true,
+          drankEnoughWater: true,
+          currentEnergyLevel: "Good",
+          doYouAgreeToMedicalReview: true,
+        };
+
+        stage = "checking eligibility against server (/donor-eligibility/check)";
+        const checkResponse = await api.post("/donor-eligibility/check", payload);
         
-        // Fetch donor info safely if possible
-        try {
-           const allDonors = await api.get("/donors");
-           const myDonor = allDonors.data.find((d: any) => d.user?.id === userData.id);
-           if (myDonor) {
-              if (myDonor.lastDonationDate) {
-                 setFormData(prev => ({...prev, lastDonationDate: myDonor.lastDonationDate}));
-                 
-                 const lastDate = new Date(myDonor.lastDonationDate);
-                 const threeMonthsAgo = new Date();
-                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        stage = "navigating to results";
+        navigate("/eligibility-result", { state: { result: checkResponse.data, requestId } });
 
-                 if (lastDate > threeMonthsAgo) {
-                    setIsEligibleByTime(false);
-                    setTimeRestrictionMessage("You cannot proceed. Your last donation was less than 3 months ago.");
-                 }
-              }
-           }
-        } catch(e) {}
-
-      } catch (err) {
-        console.error("Failed to fetch user profile for auto-fill", err);
+      } catch (err: any) {
+        console.error(`Failed at stage: ${stage}`, err);
+        const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+        setError(`Failed at: ${stage}. Details: ${errMsg}`);
+      } finally {
+        setProfileLoading(false);
       }
     };
     
-    // Only fetch if we have a token
-    if (localStorage.getItem("token")) {
-       fetchUserData();
+    if (isLoggedIn) {
+       checkEligibilityAutomatically();
     }
-  }, []);
+  }, [isLoggedIn, navigate, requestId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -151,17 +179,23 @@ export const EligibilityForm = () => {
     setStep(step + 1);
   };
   
-  const prevStep = () => setStep(step - 1);
+  const prevStep = () => {
+    if (isLoggedIn && step === 2) return;
+    setStep(step - 1);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
+      const parsedAge = formData.age ? parseInt(formData.age) : 0;
+      const parsedWeight = formData.weight ? parseFloat(formData.weight) : 0.0;
+
       const payload = {
         ...formData,
-        age: parseInt(formData.age),
-        weight: parseFloat(formData.weight)
+        age: isNaN(parsedAge) ? null : parsedAge,
+        weight: isNaN(parsedWeight) ? null : parsedWeight
       };
 
       const response = await api.post("/donor-eligibility/check", payload);
@@ -174,12 +208,45 @@ export const EligibilityForm = () => {
     }
   };
 
+  if (isLoggedIn) {
+    if (profileLoading) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-4 bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full text-center">
+            <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900 mb-1">Checking Eligibility</h3>
+            <p className="text-gray-500 font-medium text-sm">Verifying your donor profile information...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full text-center animate-in fade-in">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600 font-bold text-2xl">
+              !
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Verification Failed</h3>
+            <p className="text-gray-600 text-sm mb-6">{error}</p>
+            <button onClick={() => navigate("/dashboard")} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition duration-200">
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl w-full bg-white rounded-lg shadow-xl overflow-hidden">
         <div className="bg-red-600 px-6 py-4">
           <h2 className="text-2xl font-bold text-white text-center">Donor Eligibility Assessment</h2>
-          <p className="text-red-100 text-center mt-1">Step {step} of 3</p>
+          <p className="text-red-100 text-center mt-1">Step {isLoggedIn ? step - 1 : step} of {isLoggedIn ? 2 : 3}</p>
         </div>
 
         <form onSubmit={(e) => e.preventDefault()} className="px-8 pt-6 pb-8 mb-4">
@@ -189,7 +256,7 @@ export const EligibilityForm = () => {
             </div>
           )}
           
-          {!isEligibleByTime && step === 1 && (
+          {!isEligibleByTime && (
             <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4 font-bold">
               {timeRestrictionMessage}
             </div>
@@ -291,10 +358,14 @@ export const EligibilityForm = () => {
               </div>
 
               <div className="flex justify-between mt-8">
-                <button type="button" onClick={prevStep} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded focus:outline-none transition duration-200">
-                  Back
-                </button>
-                <button type="button" onClick={nextStep} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded focus:outline-none transition duration-200">
+                {isLoggedIn ? (
+                  <div />
+                ) : (
+                  <button type="button" onClick={prevStep} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded focus:outline-none transition duration-200">
+                    Back
+                  </button>
+                )}
+                <button type="button" onClick={nextStep} disabled={!isEligibleByTime} className={`text-white font-bold py-2 px-6 rounded focus:outline-none transition duration-200 ${!isEligibleByTime ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}>
                   Next Step
                 </button>
               </div>
