@@ -1,3 +1,4 @@
+
 # 12 — QR Public URL + Soft-Delete Request + Notifications UX
 
 **Scope:** Focused three-task implementation. Explicit non-goals: no refactoring of unrelated modules, no removal of existing features, no business logic changes outside these three tasks.

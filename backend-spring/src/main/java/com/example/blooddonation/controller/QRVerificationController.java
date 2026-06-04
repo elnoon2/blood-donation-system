@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -61,7 +60,6 @@ public class QRVerificationController {
     @Autowired private UserRepository userRepository;
     @Autowired private DonationFormRepository donationFormRepository;
     @Autowired private com.example.blooddonation.repository.RequestRepository requestRepository;
-    @Autowired private PasswordEncoder passwordEncoder;
 
     @GetMapping("/token/{requestId}")
     @PreAuthorize("hasRole('DONOR')")
@@ -183,10 +181,14 @@ public class QRVerificationController {
         if (form == null || form.getToken() == null || form.getToken().isBlank()) {
             return ResponseEntity.badRequest().body(new MessageResponse("token is required"));
         }
-        if (form.getStaffEmail() == null || form.getStaffEmail().isBlank()
-                || form.getDoctorPasswordOrOtp() == null || form.getDoctorPasswordOrOtp().isBlank()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Staff email and password are required."));
+        if (form.getStaffEmail() == null || form.getStaffEmail().isBlank()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Staff email is required."));
         }
+        // Phase 15: password no longer required for QR submit. The QR token
+        // itself is the cryptographic auth (signed JWT, single-use, expiring).
+        // The staff email is for identity/audit -- we still verify it
+        // corresponds to a HOSPITAL/ADMIN account at the matching hospital.
+        // Regular login (UserDetailsServiceImpl, AuthController) is unchanged.
 
         QRVerificationToken stored = tokenRepository.findByToken(form.getToken()).orElse(null);
         if (stored == null) {
@@ -204,15 +206,29 @@ public class QRVerificationController {
             return ResponseEntity.status(401).body(new MessageResponse("QR token signature invalid."));
         }
 
-        // Inline staff authentication (no @PreAuthorize -- the token + form
-        // creds are the auth surface for this endpoint).
-        User staff = userRepository.findByEmail(form.getStaffEmail().trim()).orElse(null);
-        if (staff == null || !passwordEncoder.matches(form.getDoctorPasswordOrOtp(), staff.getPassword())) {
-            // Constant-ish response time isn't reachable here without further work;
-            // intentionally not differentiating wrong-email vs wrong-password.
-            log.info("QR submit auth rejected for email '{}'", form.getStaffEmail());
-            return ResponseEntity.status(401).body(new MessageResponse("Invalid staff credentials."));
+        // Phase 15 (email-only QR verification):
+        //   The QR token is the cryptographic auth -- signed JWT, stored in DB,
+        //   single-use, expires in 24h. The staff EMAIL only identifies who
+        //   verified the donation (for the audit trail). No password is taken
+        //   from the form anymore.
+        //
+        //   We still verify the email belongs to an account that:
+        //     - exists in the users table
+        //     - has role HOSPITAL or ADMIN
+        //     - (if HOSPITAL) is scoped to the same hospital as the QR's request
+        //
+        //   Regular login (UserDetailsServiceImpl, AuthController) is untouched
+        //   -- password is required for normal login as before.
+        String normalisedEmail = form.getStaffEmail().trim();
+        User staff = userRepository.findByEmailIgnoreCase(normalisedEmail).orElse(null);
+        if (staff == null) {
+            log.info("QR submit: email '{}' is not registered as a hospital/admin account", normalisedEmail);
+            return ResponseEntity.status(401).body(new MessageResponse(
+                    "This email is not registered as an authorised verifier. " +
+                    "Use the email your hospital/Ministry of Health account is registered with."));
         }
+        log.debug("QR submit: identified verifier id={} email='{}' role={}",
+                staff.getId(), normalisedEmail, staff.getRole());
         if (staff.getRole() != Role.HOSPITAL && staff.getRole() != Role.ADMIN) {
             return ResponseEntity.status(403).body(new MessageResponse(
                     "Only HOSPITAL or ADMIN accounts can submit donation verification."));

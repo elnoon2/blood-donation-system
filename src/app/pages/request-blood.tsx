@@ -11,26 +11,46 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { Droplet, Building2, MapPin, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 import api from "../../lib/api";
 
 export function RequestBloodPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [hasActiveRequest, setHasActiveRequest] = useState<null | any>(null);
   const [activeRequestLoading, setActiveRequestLoading] = useState(true);
   const [requesterLocation, setRequesterLocation] = useState<{ lat: number; lng: number; mapLink: string } | null>(null);
+  // Phase 13: seed form from the authenticated patient's profile. Fields
+  // remain editable so the patient can submit on behalf of a family member.
   const [formData, setFormData] = useState({
-    bloodType: "A+",
+    bloodType: user?.bloodType || "A+",
     units: "1",
-    hospitalId: "" as string | number,
-    patientName: "",
-    governorate: "Cairo",
-    phone: "",
+    hospitalId: (user as any)?.hospital?.id ?? ("" as string | number),
+    patientName: user?.name || "",
+    governorate: user?.governorate || "Cairo",
+    phone: user?.phone || "",
     urgency: "medium",
     additionalInfo: "",
   });
+
+  // Phase 13: when the auth hydrates after the initial mount (common for
+  // route-protected pages that render before the AuthContext settles), copy
+  // profile fields into any form field that's still on its default empty
+  // value. We deliberately avoid overwriting a field the patient has typed.
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      bloodType: prev.bloodType && prev.bloodType !== "A+" ? prev.bloodType : (user.bloodType || prev.bloodType),
+      patientName: prev.patientName?.trim() ? prev.patientName : (user.name || ""),
+      governorate: prev.governorate && prev.governorate !== "Cairo" ? prev.governorate : (user.governorate || prev.governorate),
+      phone: prev.phone?.trim() ? prev.phone : (user.phone || ""),
+      hospitalId: prev.hospitalId || (user as any)?.hospital?.id || prev.hospitalId,
+    }));
+  }, [user]);
 
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
   const [availableHospitals, setAvailableHospitals] = useState<any[]>([]);

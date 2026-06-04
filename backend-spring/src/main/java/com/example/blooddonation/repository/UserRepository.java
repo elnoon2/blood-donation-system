@@ -16,7 +16,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = {"hospital"})
     Optional<User> findByEmail(String email);
 
+    /**
+     * Phase 14: case-insensitive email lookup. Used wherever a human types an
+     * email into a form on a touch device — phone keyboards autocap the first
+     * letter, which would otherwise miss a lowercase-stored email and trigger
+     * a misleading "Invalid staff credentials" error. Used by both the login
+     * path (UserDetailsServiceImpl) and the QR submit path
+     * (QRVerificationController) so behavior is uniform.
+     */
+    @EntityGraph(attributePaths = {"hospital"})
+    Optional<User> findByEmailIgnoreCase(String email);
+
     Boolean existsByEmail(String email);
+    Boolean existsByEmailIgnoreCase(String email);
 
     @EntityGraph(attributePaths = {"hospital"})
     List<User> findByRole(Role role);

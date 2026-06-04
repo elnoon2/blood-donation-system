@@ -71,6 +71,9 @@ public class DonationService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    private WhatsAppClient whatsAppClient;
+
     @Transactional
     public Request createRequest(User patientUser, BloodRequestDTO dto) {
         List<RequestStatus> activeStatuses = List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED, RequestStatus.IN_PROGRESS);
@@ -225,11 +228,22 @@ public class DonationService {
         QrPayloadDTO qrPayload = qrService.generateOrReuseSignedQrPayload(request, donorUser);
 
         if (firstAcceptance && request.getUser() != null) {
+            String hospitalName = request.getHospital() != null ? request.getHospital().getName() : "the hospital";
             notificationService.createNotificationIfNotDuplicate(
                     request.getUser(),
-                    "A donor accepted your request and is heading to " + (request.getHospital() != null ? request.getHospital().getName() : "the hospital") + ".",
+                    "A donor accepted your request and is heading to " + hospitalName + ".",
                     NotificationType.MATCH
             );
+            // Phase 13: WhatsApp to the patient.
+            try {
+                String waMsg = "✅ Good news! A donor accepted your blood request and is heading to "
+                        + hospitalName + ". Track progress in the LifeFlow app.";
+                whatsAppClient.send(request.getUser().getPhone(), waMsg,
+                        "REQUEST_ACCEPTED:req=" + request.getId() + ":donor=" + donorUser.getId());
+            } catch (Exception waErr) {
+                log.warn("WhatsApp notify failed for patient {}: {}",
+                        request.getUser().getId(), waErr.getMessage());
+            }
         }
 
         return buildActiveDonationDto(request, qrPayload);
@@ -339,6 +353,28 @@ public class DonationService {
                 NotificationType.SYSTEM
         );
 
+        // Phase 13: WhatsApp completion notifications. Two separate sends so
+        // each row in whatsapp_delivery_log can be traced independently.
+        String hospitalName = request.getHospital() != null ? request.getHospital().getName() : "the hospital";
+        try {
+            whatsAppClient.send(token.getDonor().getPhone(),
+                    "🎉 Thank you for donating! Your donation at " + hospitalName
+                            + " is verified and recorded. Every donation saves up to 3 lives.",
+                    "DONATION_COMPLETED:req=" + request.getId() + ":donor=" + token.getDonor().getId());
+        } catch (Exception waErr) {
+            log.warn("WhatsApp completion notify failed for donor {}: {}",
+                    token.getDonor().getId(), waErr.getMessage());
+        }
+        try {
+            whatsAppClient.send(token.getPatient().getPhone(),
+                    "🩸 Your blood request has been fulfilled at " + hospitalName
+                            + ". We hope for a swift recovery.",
+                    "DONATION_COMPLETED:req=" + request.getId() + ":patient=" + token.getPatient().getId());
+        } catch (Exception waErr) {
+            log.warn("WhatsApp completion notify failed for patient {}: {}",
+                    token.getPatient().getId(), waErr.getMessage());
+        }
+
         return DonationHistoryDTO.from(history);
     }
 
@@ -419,6 +455,18 @@ public class DonationService {
                     messagingTemplate.convertAndSend("/topic/notifications/" + donor.getUser().getId(), created);
                 } catch (Exception e) {
                     log.warn("WebSocket push failed for donor user_id={}: {}", donor.getUser().getId(), e.getMessage());
+                }
+                // Phase 13: also push to WhatsApp. WhatsAppClient never throws.
+                try {
+                    String hospitalName = request.getHospital() != null ? request.getHospital().getName() : "a nearby hospital";
+                    String waMsg = "🩸 Urgent blood request: " + request.getBloodType()
+                            + " needed in " + request.getGovernorate()
+                            + " at " + hospitalName
+                            + ". Open the LifeFlow app to respond.";
+                    whatsAppClient.send(donor.getUser().getPhone(), waMsg,
+                            "NEW_REQUEST:req=" + request.getId() + ":donor=" + donor.getUser().getId());
+                } catch (Exception waErr) {
+                    log.warn("WhatsApp notify failed for donor {}: {}", donor.getUser().getId(), waErr.getMessage());
                 }
             }
         }

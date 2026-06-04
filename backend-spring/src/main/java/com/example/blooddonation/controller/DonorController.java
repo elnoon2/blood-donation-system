@@ -28,13 +28,19 @@ public class DonorController {
     com.example.blooddonation.repository.DonationRepository donationRepository;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL','PATIENT')")
     public List<Donor> getAllDonors() {
         return donorRepository.findAll();
     }
 
+    /**
+     * PATIENT is allowed here because the dashboard's "Find Donors" page is
+     * gated for patients (routes.tsx) and previously got 403 from this
+     * endpoint. ADMIN + HOSPITAL still see everything; the same response
+     * shape is returned to all callers.
+     */
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL','PATIENT')")
     public List<Donor> searchDonors(@RequestParam(required = false) String bloodType, @RequestParam(required = false) String governorate) {
         if (bloodType == null || bloodType.isBlank() || bloodType.equalsIgnoreCase("all") || bloodType.equalsIgnoreCase("Not Set")) {
              if (governorate != null && !governorate.isBlank() && !governorate.equalsIgnoreCase("all")) {

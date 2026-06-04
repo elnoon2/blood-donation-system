@@ -17,7 +17,7 @@ import { Droplet, Heart, Calendar, Bell, TrendingUp, MapPin, Phone, LocateFixed,
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import api from "../../lib/api";
-import { publicBaseUrl } from "../../lib/public-url";
+import { publicBaseUrl, refreshPublicBaseUrl } from "../../lib/public-url";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useChat } from "../context/ChatContext";
@@ -84,6 +84,17 @@ export function DashboardPage() {
   const [confirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
   // Phase 12: don't spam the localhost-QR warning more than once per session.
   const localhostQrWarned = useRef(false);
+  // Phase 13.1: force re-render once the backend's LAN IP arrives, so the
+  // QR generator picks up the cached value from publicBaseUrl().
+  const [, setPublicUrlTick] = useState(0);
+
+  useEffect(() => {
+    // Fire-and-forget: ask the backend for its LAN IP. If publicBaseUrl()
+    // would otherwise fall back to localhost, this lets us recover.
+    refreshPublicBaseUrl().then((url) => {
+      if (url) setPublicUrlTick((t) => t + 1);
+    });
+  }, []);
 
   const hasActiveRequest = useMemo(() => {
     if (!isPatient) return null;
@@ -310,8 +321,9 @@ export function DashboardPage() {
   };
 
   const handleShowQR = async (requestId: number) => {
-    // Phase 12: warn (once per session) if the embedded QR URL will point at
-    // localhost -- a phone scanning it won't be able to reach the dev machine.
+    // Phase 13.1: try the backend's auto-detected LAN IP first; only warn if
+    // STILL localhost after the refresh attempt resolved.
+    await refreshPublicBaseUrl();
     const base = publicBaseUrl();
     if (base.isLocalhost && !localhostQrWarned.current) {
       localhostQrWarned.current = true;

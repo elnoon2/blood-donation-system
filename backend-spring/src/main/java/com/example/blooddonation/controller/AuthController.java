@@ -69,7 +69,10 @@ public class AuthController {
     @PostMapping("/register")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest signUpRequest) {
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+        // Phase 14: case-insensitive duplicate check. Prevents two accounts
+        // with the same email in different casing -- which would also make
+        // future case-insensitive login/QR-submit lookups ambiguous.
+        if (userRepository.existsByEmailIgnoreCase(signUpRequest.getEmail())) {
             log.debug("Registration rejected: email already in use");
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
         }

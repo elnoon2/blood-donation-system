@@ -6,7 +6,6 @@ import {
   MapPin,
   User,
   Stethoscope,
-  Lock,
   BriefcaseMedical,
   Mail,
   CheckCircle2,
@@ -70,7 +69,10 @@ const VerifyDonation: React.FC = () => {
 
   const [form, setForm] = useState({
     staffEmail: "",
-    doctorPasswordOrOtp: "",
+    // Phase 15: password no longer collected — the QR token is the auth.
+    // Kept as empty string in the payload only because the DTO field still
+    // exists server-side (optional/ignored). Will be removed in a later pass
+    // when the DTO is cleaned up.
     hospitalName: "",
     doctorName: "",
     doctorMedicalId: "",
@@ -170,8 +172,8 @@ const VerifyDonation: React.FC = () => {
       toast.error("Please answer all survey questions.");
       return;
     }
-    if (!form.staffEmail.trim() || !form.doctorPasswordOrOtp.trim()) {
-      toast.error("Staff email and password are required.");
+    if (!form.staffEmail.trim()) {
+      toast.error("Hospital staff email is required.");
       return;
     }
     setSubmitting(true);
@@ -182,7 +184,10 @@ const VerifyDonation: React.FC = () => {
         donorId: donorId ? parseInt(donorId, 10) : undefined,
         patientId: patientId ? parseInt(patientId, 10) : undefined,
         staffEmail: form.staffEmail.trim(),
-        doctorPasswordOrOtp: form.doctorPasswordOrOtp,
+        // Phase 15: password no longer sent — QR token is the auth. Kept in
+        // payload as empty string only because the backend DTO field still
+        // exists (backend ignores it now).
+        doctorPasswordOrOtp: "",
         hospitalName: form.hospitalName,
         doctorName: form.doctorName,
         doctorMedicalId: form.doctorMedicalId,
@@ -403,26 +408,14 @@ const VerifyDonation: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="auth" className="font-semibold text-slate-700">
-                  Hospital account password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="auth"
-                    type="password"
-                    autoComplete="current-password"
-                    className="pl-10 h-11 focus:ring-red-500"
-                    placeholder="Your hospital account password"
-                    required
-                    value={form.doctorPasswordOrOtp}
-                    onChange={(e) =>
-                      setForm({ ...form, doctorPasswordOrOtp: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
+              {/* Phase 15: password field removed. The QR token (signed JWT,
+                  single-use, expiring) is the cryptographic auth; the staff
+                  email above is for identity / audit only. */}
+              <p className="text-xs text-slate-500 -mt-3">
+                The QR code itself authorises this verification. You only need to
+                identify yourself with the email registered on your Ministry of
+                Health / hospital account.
+              </p>
 
               <div className="space-y-2">
                 <Label htmlFor="hospitalName" className="font-semibold text-slate-700">
