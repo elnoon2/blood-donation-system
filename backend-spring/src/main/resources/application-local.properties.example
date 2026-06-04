@@ -1,0 +1,42 @@
+# =============================================================================
+# LOCAL OVERRIDE TEMPLATE  (KEEP THIS FILE)
+# =============================================================================
+# COPY (do not rename/move!) this file to:
+#   backend-spring/src/main/resources/application-local.properties
+#
+# Edit the destination file with your local Oracle credentials. The destination
+# is gitignored so any secret you put in it stays on your machine.
+#
+# application.properties auto-imports application-local.properties when present
+# (via `spring.config.import=optional:classpath:application-local.properties`),
+# so once you create the file the backend picks it up on next boot. No profile
+# activation is required.
+# =============================================================================
+
+# Oracle XE credentials. Replace with whatever your local Oracle accepts.
+# (Pre-audit the project used `system` / `nour12345` against a local XE; if you
+# kept that, use those values here. Otherwise use your own.)
+spring.datasource.password=REPLACE_WITH_YOUR_LOCAL_ORACLE_PASSWORD
+
+# Oracle XE 18c / 21c (most common today) uses a Pluggable Database (PDB)
+# named XEPDB1, accessed via service-name. The default fallback in
+# application.properties uses the legacy SID form which only worked on XE 11g.
+# For 18c+ uncomment the line below:
+spring.datasource.url=jdbc:oracle:thin:@//localhost:1521/XEPDB1
+# For Oracle XE 11g, leave the above commented and the default
+# (jdbc:oracle:thin:@localhost:1521:xe) will be used.
+
+# JWT signing secret for local dev. MUST decode to at least 64 bytes for HS512.
+# Generate a fresh one for production; this value is fine for local only.
+custom.jwt.secret=local-dev-jwt-secret-at-least-64-bytes-long-replace-in-production-environments-blood
+
+# NOTE: spring.sql.init.* is no longer used -- Flyway is the sole schema
+# manager (see audit/10-batch-execution-summary.md Batch 15). On boot Flyway
+# either runs V1..V4 against an empty DB or marks V1 as baseline against your
+# existing DB (baseline-on-migrate=true) and runs V2..V4 from there.
+
+# Useful local-dev diagnostics. Remove or quiet in production.
+spring.jpa.show-sql=true
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.springframework.boot.context.config=INFO
+logging.level.org.flywaydb=INFO

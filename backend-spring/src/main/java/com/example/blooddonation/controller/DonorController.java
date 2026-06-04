@@ -28,11 +28,13 @@ public class DonorController {
     com.example.blooddonation.repository.DonationRepository donationRepository;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
     public List<Donor> getAllDonors() {
         return donorRepository.findAll();
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
     public List<Donor> searchDonors(@RequestParam(required = false) String bloodType, @RequestParam(required = false) String governorate) {
         if (bloodType == null || bloodType.isBlank() || bloodType.equalsIgnoreCase("all") || bloodType.equalsIgnoreCase("Not Set")) {
              if (governorate != null && !governorate.isBlank() && !governorate.equalsIgnoreCase("all")) {
@@ -50,6 +52,7 @@ public class DonorController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
     public ResponseEntity<Donor> getDonorById(@PathVariable Long id) {
         Donor donor = donorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Donor not found with id: " + id));
@@ -61,7 +64,8 @@ public class DonorController {
     @jakarta.transaction.Transactional
     public ResponseEntity<Donor> getMyDonorProfile(Authentication auth) {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        User user = userRepository.findById(userDetails.getId()).get();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
         Donor donor = donorRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Donor profile not found"));
         return ResponseEntity.ok(donor);
@@ -106,7 +110,8 @@ public class DonorController {
     @jakarta.transaction.Transactional
     public ResponseEntity<Donor> updateMyDonorProfile(@RequestBody DonorDTO dto, Authentication auth) {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        User user = userRepository.findById(userDetails.getId()).get();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
         
         // Update user fields (governorate and phone are now in User)
         if(dto.getGovernorate() != null) user.setGovernorate(dto.getGovernorate());
@@ -132,11 +137,13 @@ public class DonorController {
     }
 
     @PostMapping("/register-me")
+    @PreAuthorize("hasAnyRole('PATIENT','ADMIN')")
     @jakarta.transaction.Transactional
     public ResponseEntity<?> registerAsDonor(Authentication auth) {
         if (auth == null) return ResponseEntity.status(401).build();
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        User user = userRepository.findById(userDetails.getId()).get();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
 
         // 1. Upgrade Role if needed
         if (user.getRole() != com.example.blooddonation.enums.Role.DONOR) {
@@ -156,12 +163,35 @@ public class DonorController {
         return ResponseEntity.ok(new com.example.blooddonation.dto.MessageResponse("Now you are a donor!"));
     }
 
+    @Autowired
+    com.example.blooddonation.repository.RequestRepository requestRepository;
+
     @DeleteMapping("/unregister-me")
+    @PreAuthorize("hasAnyRole('DONOR','ADMIN')")
     @jakarta.transaction.Transactional
     public ResponseEntity<?> unregisterAsDonor(Authentication auth) {
         if (auth == null) return ResponseEntity.status(401).build();
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        User user = userRepository.findById(userDetails.getId()).get();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+
+        // Guard: refuse to unregister while the donor is matched to a request
+        // that is still being fulfilled. Otherwise the request ends up pointing
+        // to a user whose role is now PATIENT, leaving the QR/donation flow
+        // in an undefined state.
+        java.util.List<com.example.blooddonation.enums.RequestStatus> blockingStatuses = java.util.List.of(
+                com.example.blooddonation.enums.RequestStatus.ACCEPTED,
+                com.example.blooddonation.enums.RequestStatus.IN_PROGRESS
+        );
+        boolean hasActive = requestRepository
+                .findByMatchedDonorIdOrderByRequestDateDesc(user.getId())
+                .stream()
+                .anyMatch(r -> blockingStatuses.contains(r.getStatus()));
+        if (hasActive) {
+            return ResponseEntity.status(409).body(new com.example.blooddonation.dto.MessageResponse(
+                    "Cannot unregister: you have an ACCEPTED or IN_PROGRESS request. " +
+                    "Complete or cancel the donation first."));
+        }
 
         // 1. Revert Role
         user.setRole(com.example.blooddonation.enums.Role.PATIENT);

@@ -176,6 +176,9 @@ public class AdminController {
         entityManager.createNativeQuery("DELETE FROM donations WHERE user_id = :userId")
                 .setParameter("userId", id).executeUpdate();
 
+        entityManager.createNativeQuery("DELETE FROM donation_history WHERE donor_id = :userId OR patient_id = :userId OR verified_by_user_id = :userId")
+                .setParameter("userId", id).executeUpdate();
+
         entityManager.createNativeQuery("DELETE FROM messages WHERE sender_id = :userId OR receiver_id = :userId")
                 .setParameter("userId", id).executeUpdate();
 
@@ -226,6 +229,9 @@ public class AdminController {
         entityManager.createNativeQuery("DELETE FROM request_audits WHERE request_id = :requestId")
                 .setParameter("requestId", id).executeUpdate();
 
+        entityManager.createNativeQuery("DELETE FROM donation_history WHERE request_id = :requestId")
+                .setParameter("requestId", id).executeUpdate();
+
         // 2. Finally delete the request itself
         entityManager.createNativeQuery("DELETE FROM requests WHERE id = :requestId")
                 .setParameter("requestId", id).executeUpdate();
@@ -247,6 +253,9 @@ public class AdminController {
         // 2. Clear donations and requests tied to this hospital
         entityManager.createNativeQuery("DELETE FROM donations WHERE hospital_id = :hospitalId")
                 .setParameter("hospitalId", id).executeUpdate();
+
+        entityManager.createNativeQuery("DELETE FROM donation_history WHERE hospital_id = :hospitalId")
+                .setParameter("hospitalId", id).executeUpdate();
                 
         entityManager.createNativeQuery("DELETE FROM requests WHERE hospital_id = :hospitalId")
                 .setParameter("hospitalId", id).executeUpdate();
@@ -266,12 +275,71 @@ public class AdminController {
 
     @PatchMapping("/requests/{id}/status")
     @Transactional
-    public ResponseEntity<Request> updateRequestStatus(
-            @PathVariable Long id, 
+    public ResponseEntity<?> updateRequestStatus(
+            @PathVariable Long id,
             @RequestParam String status) {
-        return requestRepository.findById(id).map(request -> {
-            request.setStatus(RequestStatus.valueOf(status.toUpperCase()));
+        RequestStatus parsed;
+        try {
+            parsed = RequestStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(
+                    "Invalid status value: " + status));
+        }
+        return requestRepository.findById(id).<ResponseEntity<?>>map(request -> {
+            if (!com.example.blooddonation.service.RequestStateMachine.isAllowed(request.getStatus(), parsed)) {
+                return ResponseEntity.status(409).body(new MessageResponse(
+                        "Illegal status transition " + request.getStatus() + " -> " + parsed
+                                + ". Use /override-status with a reason if you really need this."));
+            }
+            request.setStatus(parsed);
             return ResponseEntity.ok(requestRepository.save(request));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Admin escape hatch when a status must be forced past the state-machine
+     * matrix (e.g. recovering from a stuck IN_PROGRESS that the hospital
+     * abandoned). Logs the action to admin_actions; production should
+     * additionally require a reason and emit an audit event.
+     */
+    @PatchMapping("/requests/{id}/override-status")
+    @Transactional
+    public ResponseEntity<?> overrideRequestStatus(
+            @PathVariable Long id,
+            @RequestParam String status,
+            @RequestParam String reason,
+            org.springframework.security.core.Authentication auth) {
+        if (reason == null || reason.isBlank()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("reason is required"));
+        }
+        RequestStatus parsed;
+        try {
+            parsed = RequestStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(
+                    "Invalid status value: " + status));
+        }
+        return requestRepository.findById(id).<ResponseEntity<?>>map(request -> {
+            RequestStatus from = request.getStatus();
+            request.setStatus(parsed);
+            requestRepository.save(request);
+            // Record the override in admin_actions
+            if (auth != null && auth.getPrincipal() instanceof com.example.blooddonation.security.UserDetailsImpl p) {
+                try {
+                    entityManager.createNativeQuery(
+                        "INSERT INTO admin_actions (admin_id, action) VALUES (:adminId, :action)")
+                        .setParameter("adminId", p.getId())
+                        .setParameter("action",
+                            "override_status request_id=" + id
+                                + " from=" + from + " to=" + parsed
+                                + " reason=" + reason.substring(0, Math.min(reason.length(), 200)))
+                        .executeUpdate();
+                } catch (Exception logErr) {
+                    // Audit failure must not block the operational decision.
+                }
+            }
+            return ResponseEntity.ok(new MessageResponse(
+                    "Status overridden " + from + " -> " + parsed));
         }).orElse(ResponseEntity.notFound().build());
     }
 

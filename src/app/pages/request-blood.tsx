@@ -2,7 +2,7 @@ import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
 // Force Vite refresh: 2026-04-10-17-06
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { toast } from "sonner";
 import { GOVERNORATES, BLOOD_TYPES } from "../../lib/location-data";
 import { Card } from "../components/ui/card";
@@ -10,7 +10,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
-import { Droplet, Building2, MapPin, Phone, AlertCircle } from "lucide-react";
+import { Droplet, Building2, MapPin, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import api from "../../lib/api";
 
@@ -18,6 +18,8 @@ export function RequestBloodPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [hasActiveRequest, setHasActiveRequest] = useState<null | any>(null);
+  const [activeRequestLoading, setActiveRequestLoading] = useState(true);
   const [requesterLocation, setRequesterLocation] = useState<{ lat: number; lng: number; mapLink: string } | null>(null);
   const [formData, setFormData] = useState({
     bloodType: "A+",
@@ -32,6 +34,26 @@ export function RequestBloodPage() {
 
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
   const [availableHospitals, setAvailableHospitals] = useState<any[]>([]);
+
+  // Check if the user already has an active blood request
+  useEffect(() => {
+    const checkActiveRequest = async () => {
+      try {
+        const response = await api.get("/requests");
+        const myRequests: any[] = response.data || [];
+        const active = myRequests.find(
+          (req) => req.status === "PENDING" || req.status === "ACCEPTED" || req.status === "IN_PROGRESS"
+        );
+        setHasActiveRequest(active || null);
+      } catch (err) {
+        console.error("Failed to check active requests:", err);
+        setHasActiveRequest(null);
+      } finally {
+        setActiveRequestLoading(false);
+      }
+    };
+    checkActiveRequest();
+  }, []);
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -155,6 +177,53 @@ export function RequestBloodPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Request Blood</h1>
           <p className="text-gray-600">Submit a blood request to find matching donors in your area</p>
         </div>
+
+        {/* Active Request Blocking Banner */}
+        {!activeRequestLoading && hasActiveRequest && (
+          <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-300 rounded-[1.5rem] flex flex-col gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 bg-amber-100 rounded-xl text-amber-700 shrink-0">
+                <AlertCircle className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-amber-900">You Already Have an Active Blood Request</h3>
+                <p className="text-sm text-amber-700 mt-1 leading-relaxed">
+                  Your request for <strong>{hasActiveRequest.bloodType}</strong> blood is currently <strong>{hasActiveRequest.status}</strong>.
+                  To protect donation queues and ensure donors aren't overwhelmed, patients can only have one active request at a time.
+                </p>
+                <p className="text-sm text-amber-700 mt-2 leading-relaxed">
+                  Please cancel your existing request from the Dashboard if it's no longer needed, or wait for it to be fulfilled.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="default"
+                className="flex-1 h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                asChild
+              >
+                <Link to="/dashboard">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  View My Active Request
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 h-11 rounded-xl border-amber-300 text-amber-700 hover:bg-amber-50 font-bold"
+                onClick={() => navigate(-1)}
+              >
+                Go Back
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {activeRequestLoading && (
+          <div className="mb-8 flex items-center gap-3 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+            <p className="text-sm text-gray-500">Checking for existing requests...</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Form */}
@@ -298,11 +367,16 @@ export function RequestBloodPage() {
 
                 {/* Submit Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                  <Button type="submit" className="flex-1 h-12 text-lg" disabled={loading}>
+                  <Button type="submit" className="flex-1 h-12 text-lg" disabled={loading || !!hasActiveRequest}>
                     {loading ? (
                         <div className="flex items-center gap-2">
                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                             <span>Submitting...</span>
+                        </div>
+                    ) : hasActiveRequest ? (
+                        <div className="flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5" />
+                            <span>Active Request Exists</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">

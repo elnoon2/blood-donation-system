@@ -28,6 +28,7 @@ public class RequestResponseDTO {
     private Integer bagsNeeded;
     private String urgencyLevel;
     private Integer confirmedDonors;
+    private Long matchedDonorId;
 
     public static RequestResponseDTO from(Request r, com.example.blooddonation.entity.User currentUser) {
         RequestResponseDTO dto = new RequestResponseDTO();
@@ -43,6 +44,7 @@ public class RequestResponseDTO {
         dto.setBagsNeeded(r.getBagsNeeded());
         dto.setUrgencyLevel(r.getUrgencyLevel());
         dto.setConfirmedDonors(r.getConfirmedDonors() != null ? r.getConfirmedDonors() : 0);
+        dto.setMatchedDonorId(r.getMatchedDonor() != null ? r.getMatchedDonor().getId() : null);
         
         boolean canSeeDetails = false;
         if (currentUser != null) {
@@ -51,8 +53,8 @@ public class RequestResponseDTO {
                 canSeeDetails = true;
             } else if (r.getUser() != null && r.getUser().getId().equals(currentUser.getId())) {
                 canSeeDetails = true;
-            } else if (r.getStatus() == com.example.blooddonation.enums.RequestStatus.MATCHED_DONOR || r.getStatus() == com.example.blooddonation.enums.RequestStatus.DONATION_COMPLETED) {
-                canSeeDetails = true; // allow donor to see details if matched
+            } else if (r.getMatchedDonor() != null && r.getMatchedDonor().getId().equals(currentUser.getId())) {
+                canSeeDetails = true;
             }
         }
 

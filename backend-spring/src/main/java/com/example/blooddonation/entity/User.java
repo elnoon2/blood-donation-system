@@ -6,6 +6,13 @@ import lombok.*;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+// Soft-delete temporarily reverted (was: extends SoftDeletable + @SQLDelete
+// + @Where). It requires a `deleted_at` column on `users` that the existing
+// pre-audit DB does not have. ddl-auto=update would add the column, but
+// adding it AND enabling @Where in the same boot is fragile. Re-enable once
+// Flyway V4 has been applied (manually for now: ALTER TABLE users ADD
+// (deleted_at TIMESTAMP NULL); see audit/10-batch-execution-summary.md Batch 5).
+
 @Entity
 @Table(name = "users")
 @Data
@@ -49,7 +56,7 @@ public class User {
     @Builder.Default
     private Boolean isApproved = true;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hospital_id")
     private Hospital hospital;
 

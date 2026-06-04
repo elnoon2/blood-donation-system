@@ -37,7 +37,7 @@ public class WebSocketAuthenticationInterceptor implements ChannelInterceptor {
                     token = token.substring(7);
                 }
 
-                if (jwtUtils.validateJwtToken(token)) {
+                if (jwtUtils.validateJwtToken(token).isValid()) {
                     String username = jwtUtils.getUserNameFromJwtToken(token).toLowerCase();
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                     

@@ -28,7 +28,7 @@ public class QRVerificationToken {
     @JoinColumn(name = "patient_id", nullable = false)
     private User patient;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 1024)
     private String token;
 
     @Column(name = "expires_at", nullable = false)

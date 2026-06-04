@@ -3,11 +3,22 @@ import { Footer } from "../components/footer";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Droplet, Heart, Calendar, Bell, TrendingUp, MapPin, Phone, LocateFixed, Trash2, LayoutDashboard, Clock, PersonStanding, Check, Droplets } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import { Droplet, Heart, Calendar, Bell, TrendingUp, MapPin, Phone, LocateFixed, Trash2, LayoutDashboard, Clock, PersonStanding, Check, Droplets, AlertCircle, CheckCheck, X } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import api from "../../lib/api";
-import { useState, useEffect, useCallback } from "react";
+import { publicBaseUrl } from "../../lib/public-url";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useChat } from "../context/ChatContext";
 import { ChatBox } from "../components/chat-box";
@@ -65,6 +76,21 @@ export function DashboardPage() {
   const [showQrMap, setShowQrMap] = useState<Record<number, boolean>>({});
   const [recommendedDonors, setRecommendedDonors] = useState<Record<number, any[]>>({});
   const [loadingRecommendations, setLoadingRecommendations] = useState<Record<number, boolean>>({});
+
+  // Phase 12: soft-delete confirmation dialog state.
+  // `pendingDeleteId` drives the AlertDialog; null = closed.
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  // Phase 12: Clear All confirmation dialog state.
+  const [confirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
+  // Phase 12: don't spam the localhost-QR warning more than once per session.
+  const localhostQrWarned = useRef(false);
+
+  const hasActiveRequest = useMemo(() => {
+    if (!isPatient) return null;
+    return requests.find((req: any) => 
+      ["PENDING", "ACCEPTED", "IN_PROGRESS", "MATCHED_DONOR", "HOSPITAL_CONFIRMED", "UNDER_REVIEW"].includes(req.status)
+    ) || null;
+  }, [requests, isPatient]);
 
   const fetchRecommendedDonors = async (requestId: number) => {
     if (recommendedDonors[requestId]) {
@@ -186,9 +212,10 @@ export function DashboardPage() {
   const getRequestPriorityScore = (request: any) => {
     let score = 0;
     const requestStatus = requestStatusMap[request?.id] || request?.status;
-    if (requestStatus === "PENDING") score += 50;
-    if (requestStatus === "ACCEPTED") score += 35;
-    if (requestStatus === "ON_THE_WAY") score += 25;
+    if (requestStatus === "IN_PROGRESS" || requestStatus === "MATCHED_DONOR" || requestStatus === "ACCEPTED") score += 100;
+    else if (requestStatus === "PENDING") score += 50;
+    else if (requestStatus === "ON_THE_WAY") score += 25;
+    
     if (user?.bloodType && request?.bloodType === user.bloodType) score += 30;
     if (user?.governorate && request?.governorate === user.governorate) score += 20;
     return score;
@@ -226,7 +253,7 @@ export function DashboardPage() {
     );
   };
 
-  const statusSequence = ["PENDING", "UNDER_REVIEW", "HOSPITAL_CONFIRMED", "MATCHED_DONOR", "DONATION_COMPLETED"];
+  const statusSequence = ["PENDING", "ACCEPTED", "IN_PROGRESS", "COMPLETED"];
 
   const getEffectiveRequestStatus = (request: any) => requestStatusMap[request?.id] || request?.status || "PENDING";
 
@@ -238,10 +265,10 @@ export function DashboardPage() {
 
   const getStatusBadgeClass = (status: string) => {
     if (status === "PENDING" || status === "UNDER_REVIEW") return "rounded-lg border-red-200 bg-red-50 text-red-600";
-    if (status === "HOSPITAL_CONFIRMED") return "rounded-lg border-green-200 bg-green-50 text-green-700";
-    if (status === "MATCHED_DONOR") return "rounded-lg border-blue-200 bg-blue-50 text-blue-700";
-    if (status === "DONATION_COMPLETED") return "rounded-lg border-indigo-200 bg-indigo-50 text-indigo-700";
-    return "rounded-lg border-gray-200 bg-gray-50 text-gray-600";
+    if (status === "ACCEPTED" || status === "HOSPITAL_CONFIRMED") return "rounded-lg border-green-200 bg-green-50 text-green-700";
+    if (status === "IN_PROGRESS" || status === "MATCHED_DONOR") return "rounded-lg border-blue-200 bg-blue-50 text-blue-700";
+    if (status === "COMPLETED" || status === "DONATION_COMPLETED") return "rounded-lg border-indigo-200 bg-indigo-50 text-indigo-700";
+    return "rounded-lg border-gray-200 bg-gray-50 text-gray-700";
   };
 
   const updateRequestStatus = async (request: any, nextStatus: string) => {
@@ -283,6 +310,18 @@ export function DashboardPage() {
   };
 
   const handleShowQR = async (requestId: number) => {
+    // Phase 12: warn (once per session) if the embedded QR URL will point at
+    // localhost -- a phone scanning it won't be able to reach the dev machine.
+    const base = publicBaseUrl();
+    if (base.isLocalhost && !localhostQrWarned.current) {
+      localhostQrWarned.current = true;
+      toast.warning(
+        "This QR will point to localhost. To scan from another device, " +
+          "open the dashboard at http://<your-LAN-IP>:5173 or set VITE_PUBLIC_BASE_URL.",
+        { duration: 10000 }
+      );
+    }
+
     if (qrTokens[requestId]) {
         setShowQrMap(prev => ({ ...prev, [requestId]: !prev[requestId] }));
         return;
@@ -290,25 +329,119 @@ export function DashboardPage() {
 
     try {
         const response = await api.get(`/verify-donation/token/${requestId}`);
-        setQrTokens(prev => ({ ...prev, [requestId]: response.data.token }));
+        const token = response?.data?.token;
+        if (!token) {
+            toast.error("Backend returned no token. Check that the request has a hospital assigned.");
+            console.error("QR token endpoint returned no token", response?.data);
+            return;
+        }
+        setQrTokens(prev => ({ ...prev, [requestId]: token }));
         setShowQrMap(prev => ({ ...prev, [requestId]: true }));
-    } catch (error) {
-        toast.error("Failed to generate QR token.");
+    } catch (error: any) {
+        // Surface the actual backend reason instead of a generic message so the
+        // operator can self-diagnose. Common causes:
+        //  - 401: JWT expired/missing  -> log in again
+        //  - 403: wrong role or this isn't your matched request
+        //  - 404: request id not found in DB
+        //  - 500: request has no hospital_id (most common after Phase 11) OR
+        //         the donor profile for this user doesn't exist
+        //  - network/CORS: backend not running, or accessed via a non-allowed origin
+        console.error("Show QR failed", error);
+        const status: number | undefined = error?.response?.status;
+        const backendMsg: string | undefined =
+            error?.response?.data?.message ||
+            error?.response?.data?.error ||
+            (typeof error?.response?.data === "string" ? error.response.data : undefined);
+
+        let friendly = "Failed to generate QR.";
+        if (!status) {
+            friendly = "Backend not reachable. Is the Spring Boot server running on :8080?";
+        } else if (status === 401) {
+            friendly = "Session expired. Please log out and log in again.";
+        } else if (status === 403) {
+            friendly = "Only the donor matched to this request can generate its QR.";
+        } else if (status === 404) {
+            friendly = "This request no longer exists in the database.";
+        } else if (status >= 500) {
+            friendly = backendMsg
+                ? `Server error: ${backendMsg}`
+                : "Server error. The request likely has no hospital assigned, or your donor profile is missing.";
+        } else if (backendMsg) {
+            friendly = backendMsg;
+        }
+        toast.error(friendly, { duration: 8000 });
     }
   };
 
-  const handleDeleteRequest = async (requestId: number) => {
-    if (!window.confirm("Are you sure you want to delete this request permanently?")) return;
+  /**
+   * Phase 12: Soft-delete via the new `DELETE /api/requests/{id}` endpoint.
+   * For ACCEPTED / IN_PROGRESS we pass `?confirmed=true` because the strong
+   * warning is already shown to the user in the AlertDialog. Admin still has
+   * the hard-delete path via `/admin/requests/{id}` if needed -- not used
+   * from this UI anymore.
+   */
+  const performDeleteRequest = async (requestId: number) => {
+    const target = requests.find((r: any) => r.id === requestId);
+    const needsConfirmedFlag = target && (target.status === "ACCEPTED" || target.status === "IN_PROGRESS");
+    const url = needsConfirmedFlag
+      ? `/requests/${requestId}?confirmed=true`
+      : `/requests/${requestId}`;
     try {
-      setRequestsLoading(true);
-      await api.delete(`/admin/requests/${requestId}`);
-      toast.success("Request deleted successfully");
-      fetchRequests();
-    } catch (error) {
+      await api.delete(url);
+      // Optimistic local update so the card disappears immediately.
+      setRequests(prev => prev.filter((r: any) => r.id !== requestId));
+      toast.success("Request deleted.");
+    } catch (error: any) {
       console.error("Failed to delete request", error);
-      toast.error("Failed to delete request.");
+      const status = error?.response?.status;
+      const msg =
+        error?.response?.data?.message ||
+        (status === 403
+          ? "You can only delete your own requests."
+          : status === 409
+          ? "This request can no longer be deleted."
+          : status === 404
+          ? "Request not found."
+          : "Failed to delete request.");
+      toast.error(msg);
     } finally {
-      setRequestsLoading(false);
+      setPendingDeleteId(null);
+    }
+  };
+
+  const canDeleteRequest = (request: any): boolean => {
+    if (!user || !request) return false;
+    const status = request.status;
+    if (status === "COMPLETED" || status === "REJECTED" || status === "CANCELLED" || status === "DONATION_COMPLETED") {
+      return false;
+    }
+    const isOwningPatient = request.userId === user.id;
+    const isMatchedDonor = request.matchedDonorId === user.id;
+    return isAdmin || isOwningPatient || isMatchedDonor;
+  };
+
+  // Phase 12: Notifications -- Read All + Clear All.
+  const handleMarkAllRead = async () => {
+    try {
+      await api.post(`/notifications/read-all`);
+      setNotifications(prev => prev.map((n: any) => ({ ...n, isRead: true })));
+      toast.success("All notifications marked as read.");
+    } catch (e) {
+      console.error("Mark all as read failed", e);
+      toast.error("Couldn't mark all as read.");
+    }
+  };
+
+  const handleClearAll = async () => {
+    setConfirmClearAllOpen(false);
+    try {
+      await api.delete(`/notifications/clear-all`);
+      // Soft-clear: rows stay in DB but disappear from the user's panel.
+      setNotifications([]);
+      toast.success("Notifications cleared.");
+    } catch (e) {
+      console.error("Clear all failed", e);
+      toast.error("Couldn't clear notifications.");
     }
   };
 
@@ -422,9 +555,31 @@ export function DashboardPage() {
             </Card>
 
             {/* Unified Blood Requests & Donors Area */}
+            {hasActiveRequest && !isAdmin && (
+              <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-[2rem] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-amber-100 rounded-2xl text-amber-600 shrink-0 shadow-sm border border-amber-200/50">
+                    <AlertCircle className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-amber-900">Active Request Queue Blocked</h3>
+                    <p className="text-sm text-amber-700 mt-1">
+                      You currently have an active request for <strong className="text-amber-900 bg-amber-100 px-2 py-0.5 rounded">{hasActiveRequest.bloodType}</strong> blood (Status: <span className="font-black uppercase text-amber-800 tracking-tight">{hasActiveRequest.status.replace(/_/g, ' ')}</span>).
+                    </p>
+                    <p className="text-[13px] text-amber-700/80 mt-1 font-medium">You will not be able to submit new requests until this request is fully resolved or cancelled.</p>
+                  </div>
+                </div>
+                <Button variant="outline" className="h-12 px-6 rounded-xl border-amber-300 text-amber-800 hover:bg-amber-100 font-bold whitespace-nowrap bg-white shadow-sm" asChild>
+                  <Link to="/request-blood">Request Status</Link>
+                </Button>
+              </div>
+            )}
+
             <Card className="p-6 sm:p-8 border-none shadow-sm rounded-3xl bg-white overflow-hidden">
               <div className="mb-10">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 font-black uppercase tracking-tight">Blood Requests & Donors</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 font-black uppercase tracking-tight">
+                  {isPatient ? "My Blood Requests & Donors" : "Blood Requests & Donors"}
+                </h2>
                 <p className="text-gray-500 text-sm italic">Connecting heroes with those in need of life-saving blood.</p>
               </div>
 
@@ -487,11 +642,13 @@ export function DashboardPage() {
                 )}
 
                 {/* 2. Urgent Requests Section */}
-                {(isDonor || isAdmin) && (
+                {(isDonor || isAdmin || isPatient) && (
                   <section className={(isPatient || isAdmin) ? "pt-8 border-t border-gray-100" : ""}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900 border-l-4 border-red-500 pl-4">Urgent Help Needed</h3>
+                        <h3 className="text-xl font-bold text-gray-900 border-l-4 border-red-500 pl-4">
+                          {isPatient ? "My Active Requests" : "Urgent Help Needed"}
+                        </h3>
                         {isDonor && user?.bloodType && (
                           <p className="text-sm text-gray-500 mt-1 pl-4">Showing compatible blood requests for your blood type: <span className="font-bold text-red-600">{user.bloodType}</span></p>
                         )}
@@ -549,8 +706,13 @@ export function DashboardPage() {
                                             {loadingRecommendations[request.id] ? "Loading..." : "Top Donors"}
                                         </Button>
                                      )}
-                                     {isAdmin && (
-                                        <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl text-red-500 hover:bg-red-50" onClick={() => handleDeleteRequest(request.id)}>
+                                     {canDeleteRequest(request) && (
+                                        <Button
+                                          variant="ghost"
+                                          className="h-10 w-10 p-0 rounded-xl text-red-500 hover:bg-red-50"
+                                          title="Delete request"
+                                          onClick={() => setPendingDeleteId(request.id)}
+                                        >
                                           <Trash2 className="w-5 h-5" />
                                         </Button>
                                       )}
@@ -564,7 +726,7 @@ export function DashboardPage() {
                                
                                <div className="flex items-center justify-between pt-3 border-t border-red-100/50">
                                   <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest leading-none">Action</span>
-                                     {isDonor && effectiveStatus === "MATCHED_DONOR" && (
+                                     {isDonor && (effectiveStatus === "IN_PROGRESS" || effectiveStatus === "ACCEPTED") && (
                                        <Button 
                                         variant="outline" 
                                         size="sm" 
@@ -578,24 +740,22 @@ export function DashboardPage() {
                                       variant="ghost" 
                                       size="sm" 
                                       className="text-[10px] font-black text-primary hover:text-white hover:bg-primary uppercase tracking-widest h-8 px-3 rounded-lg border border-primary/20"
-                                      disabled={!(isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED"))}
+                                      disabled={!(isDonor && effectiveStatus === "PENDING")}
                                       onClick={() => {
-                                        if (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) {
+                                        if (isDonor && effectiveStatus === "PENDING") {
                                           navigate(`/eligibility-form?requestId=${request.id}`);
-                                        } else {
-                                          updateRequestStatus(request, "MATCHED_DONOR");
                                         }
                                       }}
                                     >
-                                      {effectiveStatus === "DONATION_COMPLETED" ? "Completed ✓" : effectiveStatus === "MATCHED_DONOR" ? "Matched (Go to Hospital)" : (isDonor && (effectiveStatus === "PENDING" || effectiveStatus === "HOSPITAL_CONFIRMED")) ? "Check Eligibility & Accept →" : "Awaiting Process"}
+                                      {effectiveStatus === "COMPLETED" ? "Completed ✓" : (effectiveStatus === "IN_PROGRESS" || effectiveStatus === "ACCEPTED") ? "Matched (Go to Hospital)" : (isDonor && effectiveStatus === "PENDING") ? "Check Eligibility & Accept →" : "Awaiting Process"}
                                     </Button>
                                   </div>
   
                                {showQrMap[request.id] && qrTokens[request.id] && (
                                   <div className="mt-4 p-6 bg-white border border-dashed border-red-200 rounded-2xl flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                                     <div className="p-4 bg-white rounded-xl shadow-md border">
-                                        <QRCodeCanvas 
-                                          value={`http://192.168.100.17:5173/donor-form?request_id=${request.id}&donor_id=${user?.id}&patient_id=${request.userId}&token=${qrTokens[request.id]}`}
+                                      <div className="p-4 bg-white rounded-xl shadow-md border">
+                                        <QRCodeCanvas
+                                          value={`${publicBaseUrl().url}/verify-donation?request_id=${request.id}&donor_id=${user?.id}&patient_id=${request.userId}&token=${encodeURIComponent(qrTokens[request.id])}`}
                                           size={180}
                                           level="H"
                                           includeMargin={true}
@@ -757,21 +917,48 @@ export function DashboardPage() {
 
             {/* Notifications */}
             <Card className="p-6 sm:p-8 border-none shadow-sm rounded-3xl bg-white">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
-                <div className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">
-                    {notifications.length}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
+                  <div className="min-w-[1.5rem] h-6 px-2 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">
+                      {notifications.length}
+                  </div>
                 </div>
               </div>
-              <div className="space-y-4">
+              {/* Phase 12: Read All + Clear All actions */}
+              {notifications.length > 0 && (
+                <div className="flex items-center gap-2 mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[11px] h-8 font-bold border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={handleMarkAllRead}
+                    disabled={notifications.every((n: any) => n.isRead)}
+                  >
+                    <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                    Read All
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[11px] h-8 font-bold border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={() => setConfirmClearAllOpen(true)}
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Clear All
+                  </Button>
+                </div>
+              )}
+              {/* Phase 12: fixed-height scroll container so a long list doesn't blow up the page */}
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {notifications.length > 0 ? notifications.map((notification) => (
                   <div
                     key={notification.id}
                     className={`p-4 rounded-2xl border-l-4 transition-all hover:bg-gray-50 ${
-                      notification.type === "urgent"
+                      notification.type === "urgent" || notification.type === "URGENT"
                         ? "bg-red-50/30 border-red-500"
                         : "bg-blue-50/30 border-blue-500"
-                    }`}
+                    } ${notification.isRead ? "opacity-70" : ""}`}
                   >
                     <p className="text-sm font-bold text-gray-900">{notification.message}</p>
                     <p className="text-[10px] text-gray-400 mt-2 font-black uppercase tracking-tighter">{notification.time}</p>
@@ -821,6 +1008,59 @@ export function DashboardPage() {
       </div>
 
       <Footer />
+
+      {/* Phase 12: Delete-request confirmation. Driven by `pendingDeleteId`. */}
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const r = requests.find((x: any) => x.id === pendingDeleteId);
+                if (r && (r.status === "ACCEPTED" || r.status === "IN_PROGRESS")) {
+                  return "This request has a matched donor. Deleting will cancel the donation arrangement. Are you sure?";
+                }
+                return "Are you sure you want to delete this request? The record stays in the database for history but disappears from your list.";
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDeleteId !== null) performDeleteRequest(pendingDeleteId);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Phase 12: Clear-all-notifications confirmation. */}
+      <AlertDialog open={confirmClearAllOpen} onOpenChange={setConfirmClearAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They'll disappear from your panel but stay in the database for history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAll}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Clear All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

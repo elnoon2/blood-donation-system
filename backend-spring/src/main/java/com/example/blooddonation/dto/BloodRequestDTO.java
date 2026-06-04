@@ -7,7 +7,6 @@ import lombok.Data;
 
 @Data
 public class BloodRequestDTO {
-    @NotNull
     @Positive
     private Integer quantityNeeded;
 

@@ -46,6 +46,7 @@ public class DonationController {
     com.example.blooddonation.repository.DonorRepository donorRepository;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
     public List<Donation> getAllDonations() {
         return donationRepository.findAll();
     }
@@ -58,16 +59,54 @@ public class DonationController {
     }
 
     @GetMapping("/{id}")
-    public Donation getDonationById(@PathVariable Long id) {
-        return donationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Donation not found"));
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
+    public Donation getDonationById(@PathVariable Long id, Authentication auth) {
+        Donation donation = donationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Donation not found"));
+        // Hospital users may only see donations recorded against their own hospital.
+        if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl principal) {
+            User actingUser = userRepository.findById(principal.getId()).orElse(null);
+            if (actingUser != null
+                    && actingUser.getRole() == com.example.blooddonation.enums.Role.HOSPITAL
+                    && (actingUser.getHospital() == null
+                        || donation.getHospital() == null
+                        || !actingUser.getHospital().getId().equals(donation.getHospital().getId()))) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Hospital user may only access donations for their own hospital.");
+            }
+        }
+        return donation;
     }
 
     @PostMapping
     @Transactional
-    @PreAuthorize("hasRole('DONOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','HOSPITAL')")
     public ResponseEntity<?> createDonation(@Valid @RequestBody DonationDTO dto, Authentication auth) {
+        // Manual donor completion is disabled. Donations must be completed through hospital QR verification.
+        if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl principal) {
+            User actingUser = userRepository.findById(principal.getId()).orElse(null);
+            if (actingUser != null && actingUser.getRole() == com.example.blooddonation.enums.Role.DONOR) {
+                return ResponseEntity.status(403).body(
+                        new MessageResponse("Manual donation confirmation is disabled. Use hospital QR verification flow.")
+                );
+            }
+        }
+
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
-        User user = userRepository.findById(userDetails.getId()).get();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+
+        // Hospital users may only post donations for their own hospital.
+        if (user.getRole() == com.example.blooddonation.enums.Role.HOSPITAL) {
+            if (user.getHospital() == null) {
+                return ResponseEntity.status(403).body(
+                        new MessageResponse("Hospital user is not linked to a hospital record."));
+            }
+            if (dto.getHospitalId() == null || !user.getHospital().getId().equals(dto.getHospitalId())) {
+                return ResponseEntity.status(403).body(
+                        new MessageResponse("Hospital user may only record donations for their own hospital."));
+            }
+        }
 
         com.example.blooddonation.entity.Donor donor = donorRepository.findByUserId(user.getId()).orElse(null);
         if (donor != null && donor.getLastDonationDate() != null) {

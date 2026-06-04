@@ -1,3 +1,13 @@
-ALTER USER system IDENTIFIED BY nour12345;
-ALTER USER system ACCOUNT UNLOCK;
-EXIT;
+-- TEMPLATE - DO NOT COMMIT REAL PASSWORDS
+--
+-- Local-dev helper for resetting an Oracle XE 'system' account password.
+-- Replace <NEW_PASSWORD> with a strong value at runtime; do not save credentials
+-- in source control. This file is gitignored (.gitignore) so any local copy
+-- you fill in stays on your machine only.
+--
+-- Usage:  sqlplus / as sysdba @reset_pass.sql
+--
+
+-- ALTER USER system IDENTIFIED BY "<NEW_PASSWORD>";
+-- ALTER USER system ACCOUNT UNLOCK;
+-- EXIT;

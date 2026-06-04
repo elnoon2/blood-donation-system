@@ -20,7 +20,7 @@ public class Request {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
@@ -66,8 +66,9 @@ public class Request {
     @Column(name = "patient_name")
     private String patientName;
 
-    @Column(name = "bags_needed")
-    private Integer bagsNeeded;
+    @Column(name = "bags_needed", nullable = false)
+    @Builder.Default
+    private Integer bagsNeeded = 1;
 
     @Column(name = "urgency_level")
     private String urgencyLevel;
@@ -76,11 +77,20 @@ public class Request {
     @Builder.Default
     private Integer confirmedDonors = 0;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hospital_id")
     private Hospital hospital;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "matched_donor_id")
     private User matchedDonor;
+
+    /**
+     * Soft-delete marker (Phase 12). NULL = active, non-NULL = soft-deleted
+     * by the owning patient or matched donor. Hibernate ddl-auto=update
+     * adds the column on first boot. Repository list queries filter
+     * `deletedAt IS NULL`; admin hard-delete is unaffected.
+     */
+    @Column(name = "deleted_at")
+    private java.time.LocalDateTime deletedAt;
 }

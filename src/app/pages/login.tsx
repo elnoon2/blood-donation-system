@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Droplet, Mail, Lock } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -12,6 +12,8 @@ import axios from "axios";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl");
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,7 +45,9 @@ export function LoginPage() {
         description: `Logged in as ${fullUserData.name}`,
       });
       
-      if (fullUserData.role === "ROLE_ADMIN" || fullUserData.role === "ADMIN") {
+      if (returnUrl) {
+        navigate(returnUrl);
+      } else if (fullUserData.role === "ROLE_ADMIN" || fullUserData.role === "ADMIN") {
         navigate("/admin");
       } else {
         navigate("/eligibility-form");

@@ -38,10 +38,10 @@ public class DonationForm {
     @Column(name = "patient_governorate", nullable = false)
     private String patientGovernorate;
 
-    @Column(name = "patient_address", columnDefinition = "TEXT")
+    @Column(name = "patient_address", columnDefinition = "CLOB")
     private String patientAddress;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "CLOB")
     private String notes;
 
     // Doctor Information

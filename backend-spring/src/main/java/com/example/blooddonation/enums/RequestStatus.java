@@ -2,10 +2,13 @@ package com.example.blooddonation.enums;
 
 public enum RequestStatus {
     PENDING,
-    UNDER_REVIEW,
-    HOSPITAL_CONFIRMED,
-    MATCHED_DONOR,
-    DONATION_COMPLETED,
+    ACCEPTED,
+    IN_PROGRESS,
+    COMPLETED,
     REJECTED,
-    CANCELLED
+    CANCELLED,
+    @Deprecated UNDER_REVIEW,
+    @Deprecated HOSPITAL_CONFIRMED,
+    @Deprecated MATCHED_DONOR,
+    @Deprecated DONATION_COMPLETED
 }

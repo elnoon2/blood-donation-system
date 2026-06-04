@@ -30,6 +30,15 @@ INSERT INTO users (name, email, password, role, governorate, phone, blood_type, 
 VALUES ('Nour Admin', 'nourelkassyamin15@gmail.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.7uCyQ5a', 'ADMIN', 'Cairo', '01000000000', 'A+', 1);
 
 INSERT INTO users (name, email, password, role, governorate, phone, blood_type, is_approved) VALUES ('Ahmed Cairo', 'ahmed@mail.com', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.7uCyQ5a', 'DONOR', 'Cairo', '0111', 'O+', 1);
-INSERT INTO donors (user_id, availability_status) SELECT id, 'AVAILABLE' FROM users WHERE role = 'DONOR';
+-- Clean up any existing duplicate donor records in case this script ran multiple times previously
+DELETE FROM donors WHERE rowid NOT IN (
+    SELECT MIN(rowid) FROM donors GROUP BY user_id
+);
+
+-- Insert donor profile only if it doesn't already exist
+INSERT INTO donors (user_id, availability_status) 
+SELECT id, 'AVAILABLE' FROM users 
+WHERE role = 'DONOR' 
+AND id NOT IN (SELECT user_id FROM donors);
 
 COMMIT;

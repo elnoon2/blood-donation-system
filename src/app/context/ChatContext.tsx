@@ -48,7 +48,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const client = new Client({
       webSocketFactory: () => socket,
-      debug: (str) => console.log('STOMP: ' + str),
+      // STOMP frame logging is dev-only; production builds get a no-op so
+      // bearer tokens and frame contents do not leak to the browser console.
+      debug: import.meta.env.PROD ? () => {} : (str) => console.log('STOMP: ' + str),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,

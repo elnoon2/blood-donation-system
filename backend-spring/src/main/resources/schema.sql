@@ -7,6 +7,7 @@ DROP TABLE DONATION_FORMS CASCADE CONSTRAINTS;
 DROP TABLE DONATION_VERIFICATIONS CASCADE CONSTRAINTS;
 DROP TABLE QR_VERIFICATION_TOKENS CASCADE CONSTRAINTS;
 DROP TABLE ADMIN_ACTIONS CASCADE CONSTRAINTS;
+DROP TABLE DONATION_HISTORY CASCADE CONSTRAINTS;
 DROP TABLE NOTIFICATIONS CASCADE CONSTRAINTS;
 DROP TABLE DONATIONS CASCADE CONSTRAINTS;
 DROP TABLE BLOOD_INVENTORY CASCADE CONSTRAINTS;
@@ -46,7 +47,7 @@ CREATE TABLE users (
 -- 3. Donors
 CREATE TABLE donors (
     id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id NUMBER(19) NOT NULL,
+    user_id NUMBER(19) NOT NULL UNIQUE,
     last_donation_date DATE,
     availability_status VARCHAR2(50) DEFAULT 'AVAILABLE',
     latitude NUMBER,
@@ -78,7 +79,7 @@ CREATE TABLE requests (
     hospital_id NUMBER(19),
     matched_donor_id NUMBER(19),
     patient_name VARCHAR2(255),
-    bags_needed NUMBER(10) DEFAULT 1,
+    bags_needed NUMBER(10) DEFAULT 1 NOT NULL,
     urgency_level VARCHAR2(50),
     confirmed_donors NUMBER(10) DEFAULT 0,
     CONSTRAINT fk_req_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -129,7 +130,27 @@ CREATE TABLE notifications (
     message CLOB NOT NULL,
     type VARCHAR2(50) NOT NULL,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_read NUMBER(1) DEFAULT 0 NOT NULL,
+    CONSTRAINT chk_notif_read CHECK (is_read IN (0, 1)),
     CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 7.5 Donation History (QR Verified)
+CREATE TABLE donation_history (
+    id NUMBER(19) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    request_id NUMBER(19) NOT NULL,
+    donor_id NUMBER(19) NOT NULL,
+    patient_id NUMBER(19) NOT NULL,
+    hospital_id NUMBER(19) NOT NULL,
+    blood_type VARCHAR2(20) NOT NULL,
+    bags_count NUMBER(10) NOT NULL,
+    qr_token VARCHAR2(512) NOT NULL,
+    verified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    verified_by_user_id NUMBER(19),
+    CONSTRAINT fk_hist_req FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE,
+    CONSTRAINT fk_hist_donor FOREIGN KEY (donor_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_hist_patient FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_hist_hospital FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE CASCADE
 );
 
 -- 8. Admin Actions
@@ -147,7 +168,7 @@ CREATE TABLE qr_verification_tokens (
     request_id NUMBER(19) NOT NULL,
     donor_id NUMBER(19) NOT NULL,
     patient_id NUMBER(19) NOT NULL,
-    token VARCHAR2(255) NOT NULL UNIQUE,
+    token VARCHAR2(1024) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     is_used NUMBER(1) DEFAULT 0,
     used_at TIMESTAMP NULL,

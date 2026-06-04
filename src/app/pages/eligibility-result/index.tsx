@@ -16,8 +16,10 @@ export const EligibilityResult = () => {
         description: "You have successfully accepted the request after proving your eligibility."
       });
       navigate("/dashboard");
-    } catch (error) {
-      toast.error("Failed to accept request.");
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.message || "Failed to accept request. Please try again.";
+      toast.error(msg);
     }
   };
 

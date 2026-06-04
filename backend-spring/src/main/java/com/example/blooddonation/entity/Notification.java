@@ -36,8 +36,22 @@ public class Notification {
     @Column(name = "sent_at", nullable = false)
     private LocalDateTime sentAt;
 
+    @JsonProperty("isRead")
+    @Column(name = "is_read", nullable = false)
+    @Builder.Default
+    private Boolean isRead = false;
+
+    /**
+     * Soft-clear marker (Phase 12). NULL = visible in the user's panel;
+     * non-NULL = "cleared" (hidden from list but kept in DB for history).
+     * Hibernate ddl-auto=update adds the column on first boot.
+     */
+    @Column(name = "cleared_at")
+    private LocalDateTime clearedAt;
+
     @PrePersist
     protected void onSend() {
         if(sentAt == null) sentAt = LocalDateTime.now();
+        if (isRead == null) isRead = false;
     }
 }

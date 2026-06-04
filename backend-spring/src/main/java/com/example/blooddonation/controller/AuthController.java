@@ -14,6 +14,8 @@ import com.example.blooddonation.security.JwtUtils;
 import com.example.blooddonation.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,10 +25,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
     @Autowired
     AuthenticationManager authenticationManager;
 
@@ -47,34 +51,26 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        // Master Key Login (Fail-safe)
-        if ("nourelkassyamin15@gmail.com".equals(loginRequest.getEmail()) && "nour1234".equals(loginRequest.getPassword())) {
-            String jwt = jwtUtils.generateTokenFromUsername("nourelkassyamin15@gmail.com");
-            return ResponseEntity.ok(new JwtResponse(jwt, 1L, "Nour Admin", "nourelkassyamin15@gmail.com", "ROLE_ADMIN"));
-        }
-
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
 
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();     
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        return ResponseEntity.ok(new JwtResponse(jwt, 
-                                                 userDetails.getId(), 
-                                                 userDetails.getName(), 
-                                                 userDetails.getEmail(), 
+        return ResponseEntity.ok(new JwtResponse(jwt,
+                                                 userDetails.getId(),
+                                                 userDetails.getName(),
+                                                 userDetails.getEmail(),
                                                  userDetails.getAuthorities().iterator().next().getAuthority()));
     }
 
     @PostMapping("/register")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest signUpRequest) {
-        System.out.println("[DEBUG] Registration request received for email: " + signUpRequest.getEmail());
-        
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            System.out.println("[DEBUG] Registration failed: Email already in use: " + signUpRequest.getEmail());
+            log.debug("Registration rejected: email already in use");
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
         }
 
@@ -82,7 +78,7 @@ public class AuthController {
         try {
             roleEnum = Role.valueOf(signUpRequest.getRole().toUpperCase());
         } catch (IllegalArgumentException e) {
-            System.out.println("[DEBUG] Registration failed: Invalid role: " + signUpRequest.getRole());
+            log.debug("Registration rejected: invalid role value");
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid role"));
         }
 
@@ -110,7 +106,7 @@ public class AuthController {
         }
 
         User savedUser = userRepository.save(user);
-        System.out.println("[DEBUG] User saved successfully with ID: " + savedUser.getId());
+        log.info("User registered id={} role={}", savedUser.getId(), roleEnum);
 
         if (roleEnum == Role.DONOR) {
             Donor donor = Donor.builder()
@@ -118,7 +114,6 @@ public class AuthController {
                 .availabilityStatus("AVAILABLE")
                 .build();
             donorRepository.save(donor);
-            System.out.println("[DEBUG] Donor entity created for user ID: " + savedUser.getId());
         }
 
         if (roleEnum == Role.HOSPITAL) {
@@ -137,7 +132,7 @@ public class AuthController {
             if (!(authentication.getPrincipal() instanceof UserDetailsImpl)) {
                 return ResponseEntity.status(401).body(new MessageResponse("Invalid authentication principal"));
             }
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();  
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             Optional<User> userOpt = userRepository.findById(userDetails.getId());
             if (userOpt.isPresent()) {
                 return ResponseEntity.ok(userOpt.get());
@@ -145,7 +140,8 @@ public class AuthController {
                 return ResponseEntity.status(404).body(new MessageResponse("User not found"));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(new MessageResponse("Error retrieving user: " + e.getMessage()));
+            log.warn("getMe failed: {}", e.getMessage());
+            return ResponseEntity.status(500).body(new MessageResponse("Error retrieving user"));
         }
     }
 }

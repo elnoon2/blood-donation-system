@@ -49,3 +49,13 @@ tmp/
 whatsapp-service/node_modules/
 whatsapp-service/.wwebjs_auth/
 whatsapp-service/.wwebjs_cache/
+
+# Credential reset templates - never commit a filled-in copy
+reset_pass.sql
+reset_pass_sys.sql
+
+# Spring local override file (developers copy application-local.properties.example
+# to application-local.properties and fill in their local Oracle password / JWT secret;
+# the destination file is gitignored so secrets stay on the dev machine)
+backend-spring/src/main/resources/application-local.properties
+
