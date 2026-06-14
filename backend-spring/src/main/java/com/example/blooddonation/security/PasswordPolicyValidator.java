@@ -25,11 +25,19 @@ import java.util.Set;
 @Constraint(validatedBy = PasswordPolicyValidator.Impl.class)
 public @interface PasswordPolicyValidator {
 
-    String message() default "Password must be at least 12 characters and not a common / leaked value.";
+    String message() default "Password must be at least 8 characters and not a common / leaked value.";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 
-    int MIN_LENGTH = 12;
+    // Phase 16: relaxed from 12 → 8 chars. The original (pre-audit) project
+    // allowed 6 chars; Phase 9 jumped to 12 (NIST 800-63B recommendation) but
+    // that broke registration for everyone with shorter existing passwords.
+    // 8 is a compromise: still meaningfully secure against trivial guessing
+    // (>200 trillion combinations for alphanumeric+symbols), still allows
+    // common values like "nour1234". Denylist + repeated-char check still
+    // active. Production hardening (HIBP API, optional 12-char minimum via
+    // env) is a future task.
+    int MIN_LENGTH = 8;
     int MAX_LENGTH = 128;
 
     /** Tiny embedded denylist. A production deploy should add HIBP API check. */

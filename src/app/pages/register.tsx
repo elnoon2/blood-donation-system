@@ -188,8 +188,30 @@ export function RegisterPage() {
         message = responseData.message;
       } else if (responseData?.error && typeof responseData.error === "string") {
         message = responseData.error;
+      } else if (responseData && typeof responseData === "object") {
+        // Phase 16: backend's @Valid handler returns a field-error MAP
+        // (e.g. { "password": "Password must be at least 8 characters.",
+        //         "email": "must be a well-formed email address" })
+        // Surface ALL field messages so the user knows exactly what's wrong.
+        const fieldErrors = Object.entries(responseData)
+          .filter(([k, v]) => typeof v === "string"
+                              && k !== "timestamp" && k !== "status" && k !== "path" && k !== "error")
+          .map(([k, v]) => `${k}: ${v}`);
+        if (fieldErrors.length > 0) {
+          message = fieldErrors.join(" • ");
+        }
       }
-      
+
+      // Status-specific overrides
+      if (status === 401 || status === 403) {
+        // Auto-login after register failed (account was created but login
+        // didn't authenticate). Tell the user the account exists and to log in
+        // manually.
+        if (message === "Something went wrong. Please try again.") {
+          message = "Account created. Please log in to continue.";
+        }
+      }
+
       toast.error("Registration failed", {
         description: message,
       });

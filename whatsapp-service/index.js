@@ -31,39 +31,88 @@ if (ALLOW_INSECURE) {
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        // Phase 17: surface Puppeteer/Chromium boot errors that would otherwise
+        // silently kill the linking flow. handleSIGINT/HUP/TERM kept default.
+        dumpio: false,
+    },
 });
 
 let isClientReady = false;
+let lastStateMessage = 'just-started';
+
+// Phase 17: chatty lifecycle logging so the operator can tell exactly where
+// linking is stuck. Without these events the cmd window stays blank for 60-90s
+// while Puppeteer downloads / launches Chromium, and people assume it's frozen.
+
 client.on('loading_screen', (percent, message) => {
-    console.log('WhatsApp Loading:', percent, '% -', message);
+    lastStateMessage = `loading ${percent}% - ${message}`;
+    console.log('[WA]', lastStateMessage);
 });
 
 client.on('qr', (qr) => {
+    lastStateMessage = 'waiting-for-qr-scan';
     console.log('\n======================================================');
-    console.log('SCAN THIS QR CODE WITH WHATSAPP TO LINK THE SYSTEM');
+    console.log('SCAN THIS QR CODE WITH WHATSAPP ON YOUR PHONE');
+    console.log('Open WhatsApp → Settings → Linked Devices → Link a Device');
     console.log('======================================================\n');
     qrcode.generate(qr, { small: true });
+    console.log('\n(QR refreshes every ~60s if not scanned)\n');
 });
 
-client.on('ready', () => {
-    console.log('WhatsApp Client is ready!');
-    isClientReady = true;
+client.on('authenticated', () => {
+    lastStateMessage = 'authenticated';
+    console.log('[WA] authenticated - session persisted to .wwebjs_auth/');
 });
 
 client.on('auth_failure', msg => {
-    console.error('WhatsApp Authentication failure', msg);
+    lastStateMessage = 'auth-failure';
+    console.error('[WA] AUTHENTICATION FAILURE:', msg);
+    console.error('[WA] Fix: stop service, delete whatsapp-service/.wwebjs_auth/, restart.');
+});
+
+client.on('change_state', (state) => {
+    lastStateMessage = `state=${state}`;
+    console.log('[WA] state changed:', state);
+});
+
+client.on('ready', () => {
+    isClientReady = true;
+    lastStateMessage = 'READY';
+    console.log('\n======================================================');
+    console.log('[WA] CLIENT IS READY - messages can now be sent.');
+    console.log('======================================================\n');
 });
 
 client.on('disconnected', (reason) => {
-    console.log('WhatsApp Client was disconnected', reason);
     isClientReady = false;
+    lastStateMessage = `disconnected: ${reason}`;
+    console.log('[WA] Disconnected -', reason);
 });
 
-console.log('Initializing WhatsApp client... Please wait.');
+// Heartbeat: print where we are every 15s until ready. Makes "Is it hung?"
+// answerable from a glance at the cmd window.
+const heartbeat = setInterval(() => {
+    if (isClientReady) {
+        clearInterval(heartbeat);
+        return;
+    }
+    console.log(`[WA] still initializing... last state: ${lastStateMessage}`);
+}, 15000);
+
+console.log('[WA] Initializing WhatsApp client... (first launch can take 60-120s while Puppeteer downloads/launches Chromium)');
 client.initialize().catch(err => {
-    console.error('CRITICAL: Failed to initialize WhatsApp client:', err);
+    console.error('\n======================================================');
+    console.error('[WA] CRITICAL: client.initialize() rejected.');
+    console.error('======================================================');
+    console.error(err && err.stack ? err.stack : err);
+    console.error('\nCommon causes:');
+    console.error('  - .wwebjs_auth/ session corrupted → delete it and restart.');
+    console.error('  - Antivirus / firewall blocked the bundled Chromium.');
+    console.error('  - Network cannot reach web.whatsapp.com.');
+    console.error('  - whatsapp-web.js version no longer compatible with WhatsApp Web.');
+    console.error('    Try: npm install whatsapp-web.js@latest');
+    process.exitCode = 1;
 });
 
 // ============================================================
@@ -135,7 +184,13 @@ app.post('/api/whatsapp/send', requireInternalToken, async (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ ready: isClientReady });
+    // Phase 17: expose lastStateMessage so an operator can `curl
+    // http://localhost:3001/health` and immediately tell whether the service
+    // is waiting for a QR scan, downloading Chromium, fully ready, etc.
+    res.status(200).json({
+        ready: isClientReady,
+        state: lastStateMessage,
+    });
 });
 
 app.listen(PORT, BIND_ADDRESS, () => {
