@@ -1,0 +1,20 @@
+# Backend-only Docker image for Railway deploy.
+# Frontend ships separately on Vercel and talks to this via VITE_API_BASE_URL,
+# so we skip the React build step from the multi-stage Dockerfile.
+
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY backend-spring/pom.xml ./pom.xml
+# Pre-fetch deps for layer caching
+RUN mvn -B -q -DskipTests dependency:go-offline || true
+COPY backend-spring/src ./src
+RUN mvn -B -DskipTests package
+
+FROM eclipse-temurin:17-jre-jammy
+WORKDIR /app
+RUN useradd --system --create-home --uid 10001 spring && chown -R spring:spring /app
+USER spring
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar app.jar"]

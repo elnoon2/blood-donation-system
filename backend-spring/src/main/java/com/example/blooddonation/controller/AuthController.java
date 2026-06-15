@@ -1,5 +1,6 @@
 package com.example.blooddonation.controller;
 
+import com.example.blooddonation.dto.CompleteProfileRequest;
 import com.example.blooddonation.dto.JwtResponse;
 import com.example.blooddonation.dto.LoginRequest;
 import com.example.blooddonation.dto.MessageResponse;
@@ -124,6 +125,46 @@ public class AuthController {
         }
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+    }
+
+    /**
+     * Phase 17: one-time phone capture for accounts that never set it (legacy
+     * users or any future signup path that didn't require it). Once set, the
+     * phone is immutable through this endpoint — admin tooling owns mutations.
+     *
+     * Returns:
+     *   200 + updated User  on success
+     *   409 + MessageResponse  if the user already has a phone (immutable contract)
+     *   409 + MessageResponse  if another account already uses this phone
+     *   400 + field-error map  on validation failure (Egyptian-format check)
+     *   401 + MessageResponse  if not authenticated
+     */
+    @PostMapping("/complete-profile")
+    public ResponseEntity<?> completeProfile(@Valid @RequestBody CompleteProfileRequest req,
+                                             Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())
+                || !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+            return ResponseEntity.status(401).body(new MessageResponse("Unauthorized"));
+        }
+        UserDetailsImpl me = (UserDetailsImpl) authentication.getPrincipal();
+        User user = userRepository.findById(me.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getPhone() != null && !user.getPhone().isBlank()) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse("Phone already set; contact admin to change."));
+        }
+        String normalized = req.getPhone().trim();
+        if (userRepository.existsByPhone(normalized)) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse("This phone number is already linked to another account."));
+        }
+        user.setPhone(normalized);
+        userRepository.save(user);
+        log.info("Phone completed for userId={}", user.getId());
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/me")

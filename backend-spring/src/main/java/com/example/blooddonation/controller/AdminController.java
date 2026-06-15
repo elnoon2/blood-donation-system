@@ -66,8 +66,98 @@ public class AdminController {
             bloodTypeData.add(item);
         }
         stats.put("bloodTypeData", bloodTypeData);
-        
+
         return stats;
+    }
+
+    /**
+     * Phase 17 — rich analytics for the admin dashboard.
+     *
+     * Returns totals, blood-type / governorate breakdowns, urgency split, and
+     * a 12-month trend. Single endpoint so the frontend can render every chart
+     * from one fetch. All grouping is done with native SQL because JPQL doesn't
+     * support the date_trunc function we need for monthly buckets; query is
+     * portable across Postgres (prod) and Oracle (local) via the date/timestamp
+     * aliases below.
+     */
+    @GetMapping("/analytics")
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAnalytics() {
+        Map<String, Object> out = new HashMap<>();
+
+        // ---- Totals ----
+        Map<String, Object> totals = new HashMap<>();
+        totals.put("donors", userRepository.findByRole(Role.DONOR).size());
+        totals.put("patients", userRepository.findByRole(Role.PATIENT).size());
+        totals.put("hospitalAccounts", userRepository.findByRole(Role.HOSPITAL).size());
+        totals.put("requests", requestRepository.count());
+        totals.put("donations", donationRepository.count());
+        totals.put("hospitals", hospitalRepository.count());
+        out.put("totals", totals);
+
+        // ---- Blood-type distribution ----
+        String[] types = {"O+", "A+", "B+", "AB+", "O-", "A-", "B-", "AB-"};
+        List<Map<String, Object>> bloodTypeBreakdown = new java.util.ArrayList<>();
+        for (String t : types) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("type", t);
+            row.put("donors", userRepository.countByBloodType(t));
+            Number reqCount = (Number) entityManager
+                .createQuery("SELECT COUNT(r) FROM Request r WHERE r.bloodType = :t AND r.deletedAt IS NULL")
+                .setParameter("t", t)
+                .getSingleResult();
+            row.put("requests", reqCount.longValue());
+            bloodTypeBreakdown.add(row);
+        }
+        out.put("bloodTypeDistribution", bloodTypeBreakdown);
+
+        // ---- Governorate distribution (top 10 by request volume) ----
+        @SuppressWarnings("unchecked")
+        List<Object[]> govRows = entityManager.createQuery(
+                "SELECT r.governorate, COUNT(r) FROM Request r " +
+                "WHERE r.deletedAt IS NULL GROUP BY r.governorate ORDER BY COUNT(r) DESC")
+            .setMaxResults(10)
+            .getResultList();
+        List<Map<String, Object>> govList = govRows.stream().map(arr -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("governorate", arr[0]);
+            m.put("requests", ((Number) arr[1]).longValue());
+            return m;
+        }).collect(Collectors.toList());
+        out.put("governorateDistribution", govList);
+
+        // ---- Urgency breakdown ----
+        Map<String, Long> urgency = new HashMap<>();
+        for (String u : new String[]{"NORMAL", "URGENT", "CRITICAL"}) {
+            Number n = (Number) entityManager
+                .createQuery("SELECT COUNT(r) FROM Request r WHERE r.urgencyLevel = :u AND r.deletedAt IS NULL")
+                .setParameter("u", u)
+                .getSingleResult();
+            urgency.put(u, n.longValue());
+        }
+        out.put("urgencyBreakdown", urgency);
+
+        // ---- Monthly trend (last 12 months) ----
+        // YEAR + MONTH portable across Postgres and Oracle via JPQL functions.
+        @SuppressWarnings("unchecked")
+        List<Object[]> trendRows = entityManager.createQuery(
+                "SELECT FUNCTION('TO_CHAR', r.requestDate, 'YYYY-MM'), COUNT(r) " +
+                "FROM Request r WHERE r.deletedAt IS NULL " +
+                "GROUP BY FUNCTION('TO_CHAR', r.requestDate, 'YYYY-MM') " +
+                "ORDER BY FUNCTION('TO_CHAR', r.requestDate, 'YYYY-MM') DESC")
+            .setMaxResults(12)
+            .getResultList();
+        List<Map<String, Object>> trend = new java.util.ArrayList<>();
+        for (int i = trendRows.size() - 1; i >= 0; i--) {
+            Object[] arr = trendRows.get(i);
+            Map<String, Object> m = new HashMap<>();
+            m.put("month", arr[0]);
+            m.put("requests", ((Number) arr[1]).longValue());
+            trend.add(m);
+        }
+        out.put("monthlyTrend", trend);
+
+        return out;
     }
 
     @GetMapping("/donors")

@@ -30,6 +30,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Boolean existsByEmail(String email);
     Boolean existsByEmailIgnoreCase(String email);
 
+    // Phase 17: enforce unique phone numbers as part of the first-login phone
+    // capture flow. DB-level partial unique index (Postgres V2) provides the
+    // hard guarantee; this method is the cheap pre-check in the API path.
+    Boolean existsByPhone(String phone);
+
     @EntityGraph(attributePaths = {"hospital"})
     List<User> findByRole(Role role);
 

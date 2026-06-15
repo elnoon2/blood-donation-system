@@ -1,0 +1,13 @@
+# Railway deployment manifest. Backend-only — the React frontend ships on Vercel.
+# Nixpacks picks Maven automatically from backend-spring/pom.xml.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.backend"
+
+[deploy]
+startCommand = "java -Dserver.port=$PORT -jar app.jar"
+healthcheckPath = "/api/public/stats"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

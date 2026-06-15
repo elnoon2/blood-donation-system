@@ -38,6 +38,9 @@ const DonationOptions = lazy(() =>
 const HomeCollectionForm = lazy(() =>
   import("./pages/home-collection-form").then((m) => ({ default: m.HomeCollectionForm }))
 );
+const AdminAnalyticsPage = lazy(() =>
+  import("./pages/admin-analytics").then((m) => ({ default: m.AdminAnalyticsPage }))
+);
 
 const withSuspense = (node: React.ReactNode) => (
   <Suspense fallback={<PageLoader />}>{node}</Suspense>
@@ -105,6 +108,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute roles={["ADMIN"]}>
         {withSuspense(<AdminDashboardPage />)}
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/analytics",
+    element: (
+      <ProtectedRoute roles={["ADMIN"]}>
+        {withSuspense(<AdminAnalyticsPage />)}
       </ProtectedRoute>
     ),
   },
